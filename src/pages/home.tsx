@@ -7,9 +7,15 @@ export const Home: React.FC = () => {
         console.log(userName)
     }
 
+    const getWindowName = async () => {
+        const window_name = await invoke("plugin:windows|get_foreground_window");
+        console.log(window_name)
+    }
+
     return (
         <div>
             <button onClick={getUserName}>Get User Name</button>
+            <button onClick={getWindowName}>Window</button>
         </div>
     )
 }

@@ -37,7 +37,7 @@ fn get_window_name_length(window_handle: *mut HWND__) -> Result<i32, Option<u32>
     }
 }
 
-fn get_window_name(window_handle: *mut HWND__, window_name_length: i32, mut buffer: Vec<u16>) -> Result<usize, Option<u32>>{
+fn get_window_name(window_handle: *mut HWND__, window_name_length: i32, buffer: &mut Vec<u16>) -> Result<usize, Option<u32>>{
      unsafe {
         let window_name = GetWindowTextW(window_handle, buffer.as_mut_ptr(), buffer.len() as i32) as usize;
         if window_name == 0 || window_name < window_name_length as usize {
@@ -48,65 +48,37 @@ fn get_window_name(window_handle: *mut HWND__, window_name_length: i32, mut buff
      }
 }
 
+#[command]
 fn get_foreground_window() -> Result<Option<String>, Option<u32>> {
     let window_handle = get_foreground_window_handle()?;
     if window_handle.is_null() {
         return Ok(None);
     }
     let window_name_length = get_window_name_length(window_handle)?;
-    let buffer = vec![0u16; (window_name_length + 1) as usize];
-    let window_name = get_window_name(window_handle, window_name_length, buffer.clone())?;
-    return Ok(Some(OsString::from_wide(&buffer[..window_name]).to_string_lossy().into_owned()))
+    let mut buffer = vec![0u16; (window_name_length + 1) as usize];
+    let window_name = get_window_name(window_handle, window_name_length, &mut buffer)?;
+    let window = OsString::from_wide(&buffer[..window_name]).to_string_lossy().into_owned();
+    println!("Window: {}", window);
+    return Ok(Some(window))
 }
 
-// fn _get_foreground_window() -> Result<Option<String>, u32> {
-//     match get_foreground_window_handle() {
-//         Ok(window_handle) => {
-//             if window_handle.is_null() {
-//                 return Ok(None);
-//             }
-//             match get_window_name_length(window_handle) {
-//                 Ok(window_name_length) => {
-//                     let buffer = vec![0u16; (window_name_length + 1) as usize];
-//                     match get_window_name(window_handle, window_name_length, &buffer) {
-//                         Ok(window_name) => {
-//                             return Ok(Some(OsString::from_wide(&buffer[..window_name]).to_string_lossy().into_owned()));
-//                         }
-//                         Err(error) => {
-//                             return Err(error);
-//                         }
-//                     }
-//                 }
-//                 Err(error) => {
-//                     return Err(error);
-//                 }
-//             }
-//         }
-//         Err(error) => {
-//             return Err(error);
-//         }
-//     }
-// }
-
-// fn _get_foreground_window() -> Option<String> {
-//     let hwnd = unsafe { GetForegroundWindow() };
-//     if hwnd.is_null() {
-//         return None;
-//     }
-//     let len = unsafe {GetWindowTextLengthW(hwnd)};
-//     if len == 0 {
-//         return None;
-//     }
-//     let mut buffer = vec![0u16; (len + 1) as usize]; // +1 for null terminator
-//     let len_copied = unsafe {
-//         GetWindowTextW(hwnd, buffer.as_mut_ptr(), buffer.len() as i32) as usize
-//     };
-//     if len_copied == 0 || len_copied < len as usize {
-//         return None; // Error occurred, or buffer was still too small
-//     }
-//     return Some(OsString::from_wide(&buffer[..len_copied]).to_string_lossy().into_owned())
-// }
-
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-    Builder::new("windows").build()
+    Builder::new("windows")
+        .setup(|app_handler| {
+            match get_foreground_window() {
+                Ok(window_name) => {
+                    if let Some(name) = window_name {
+                        println!("Window Name: {}", name);
+                    }
+                }
+                Err(err) => {
+                    if let Some(e) = err {
+                        println!("Error code: {:?}", e);
+                    }
+                }
+            }
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![get_foreground_window])
+        .build()
 }
