@@ -11,7 +11,7 @@ use winapi::um::errhandlingapi::GetLastError;
 use winapi::um::winbase::GetUserNameW;
 
 #[command]
-fn get_user_name() -> Result<Option<String>, Option<u32>>{
+pub fn get_user_name() -> Result<Option<String>, Option<u32>>{
     unsafe {
         let mut size = 0;
         GetUserNameW(null_mut(), &mut size);
@@ -34,10 +34,6 @@ fn test() {
     println!("Test");
 }
 
-// TODO When application launch save current user and date
-// Check if user exist, if not make new user in database
-
-// TODO Check if new day, if new day make new UsageLog
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("user")
         .invoke_handler(tauri::generate_handler![get_user_name, test])

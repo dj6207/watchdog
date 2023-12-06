@@ -60,7 +60,7 @@ fn get_foreground_window() -> Result<Option<String>, Option<u32>> {
     let mut buffer = vec![0u16; (window_name_length + 1) as usize];
     let window_name = get_window_name(window_handle, window_name_length, &mut buffer)?;
     let window = OsString::from_wide(&buffer[..window_name]).to_string_lossy().into_owned();
-    // println!("Window: {}", window);
+    println!("Window: {}", window);
     return Ok(Some(window))
 }
 
@@ -71,7 +71,8 @@ async fn start_tacker() {
         match get_foreground_window() {
             Ok(window_name) => {
                 if let Some(name) = window_name {
-                    println!("Window Name: {}", name);
+                    // println!("Window Name: {}", name);
+                    continue;
                 }
             }
             Err(err) => {
