@@ -34,6 +34,10 @@ fn test() {
     println!("Test");
 }
 
+// TODO When application launch save current user and date
+// Check if user exist, if not make new user in database
+
+// TODO Check if new day, if new day make new UsageLog
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("user")
         .invoke_handler(tauri::generate_handler![get_user_name, test])

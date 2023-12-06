@@ -9,6 +9,8 @@ use tauri::{
 use std::ffi::OsString;
 use std::os::windows::ffi::OsStringExt;
 
+use tokio::time::{self, Duration};
+
 use winapi::um::errhandlingapi::GetLastError;
 use winapi::shared::windef::HWND__;
 use winapi::um::winuser::{
@@ -58,25 +60,40 @@ fn get_foreground_window() -> Result<Option<String>, Option<u32>> {
     let mut buffer = vec![0u16; (window_name_length + 1) as usize];
     let window_name = get_window_name(window_handle, window_name_length, &mut buffer)?;
     let window = OsString::from_wide(&buffer[..window_name]).to_string_lossy().into_owned();
-    println!("Window: {}", window);
+    // println!("Window: {}", window);
     return Ok(Some(window))
+}
+
+async fn start_tacker() {
+    let mut interval = time::interval(Duration::from_secs(5));
+    loop {
+        interval.tick().await;
+        match get_foreground_window() {
+            Ok(window_name) => {
+                if let Some(name) = window_name {
+                    println!("Window Name: {}", name);
+                }
+            }
+            Err(err) => {
+                if let Some(e) = err {
+                    println!("Error code: {:?}", e);
+                }
+            }
+        }
+    }
+}
+
+// TODO 
+fn get_executable_name() {
+
 }
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("windows")
         .setup(|app_handler| {
-            match get_foreground_window() {
-                Ok(window_name) => {
-                    if let Some(name) = window_name {
-                        println!("Window Name: {}", name);
-                    }
-                }
-                Err(err) => {
-                    if let Some(e) = err {
-                        println!("Error code: {:?}", e);
-                    }
-                }
-            }
+            tauri::async_runtime::spawn( async move {
+                start_tacker().await;
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![get_foreground_window])
