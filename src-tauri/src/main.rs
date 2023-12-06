@@ -7,6 +7,7 @@ mod database;
 fn main() {
   tauri::Builder::default()
     .plugin(services::windows::init())
+    .plugin(services::user::init())
     .plugin(database::sqlite_connector::init())
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

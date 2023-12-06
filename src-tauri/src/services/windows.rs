@@ -17,38 +17,38 @@ use winapi::um::winuser::{
     GetWindowTextW,
 };
 
-fn get_foreground_window_handle() -> Result<*mut HWND__, u32> {
+fn get_foreground_window_handle() -> Result<*mut HWND__, Option<u32>> {
     unsafe {
         let window_handle = GetForegroundWindow();
         if window_handle.is_null() {
-            return Err(GetLastError());
+            return Err(Some(GetLastError()));
         }
         return Ok(window_handle);
     }
 }
 
-fn get_window_name_length(window_handle: *mut HWND__) -> Result<i32, u32> {
+fn get_window_name_length(window_handle: *mut HWND__) -> Result<i32, Option<u32>> {
     unsafe {
         let window_name_length = GetWindowTextLengthW(window_handle);
         if window_name_length == 0 {
-            return Err(GetLastError());
+            return Err(Some(GetLastError()));
         }
         return Ok(window_name_length);
     }
 }
 
-fn get_window_name(window_handle: *mut HWND__, window_name_length: i32, mut buffer: Vec<u16>) -> Result<usize, u32>{
+fn get_window_name(window_handle: *mut HWND__, window_name_length: i32, mut buffer: Vec<u16>) -> Result<usize, Option<u32>>{
      unsafe {
         let window_name = GetWindowTextW(window_handle, buffer.as_mut_ptr(), buffer.len() as i32) as usize;
         if window_name == 0 || window_name < window_name_length as usize {
             // Error occurred, or buffer was still too small
-            return Err(GetLastError());
+            return Err(None);
         }
         return Ok(window_name);
      }
 }
 
-fn get_foreground_window() -> Result<Option<String>, u32> {
+fn get_foreground_window() -> Result<Option<String>, Option<u32>> {
     let window_handle = get_foreground_window_handle()?;
     if window_handle.is_null() {
         return Ok(None);

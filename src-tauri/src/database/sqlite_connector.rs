@@ -1,11 +1,10 @@
 use tauri::{
     command,
-    async_runtime,
     plugin::{Builder, TauriPlugin},
-    Manager, Runtime, State,
+    Manager, Runtime,
 };
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool};
-use sqlx::{Pool, Sqlite, Error as SqlxError};
+use sqlx::Error as SqlxError;
 use std::str::FromStr;
 
 #[derive(sqlx::FromRow)]
