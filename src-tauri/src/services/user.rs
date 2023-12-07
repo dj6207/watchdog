@@ -18,8 +18,12 @@ pub fn get_user_name() -> Result<Option<String>, Option<u32>>{
         if size == 0 {
             return Err(Some(GetLastError()));
         }
-        let mut buffer = vec![0u16; (size + 1) as usize];
+        let mut buffer = vec![0u16; size as usize];
         if GetUserNameW(buffer.as_mut_ptr(), &mut size) != 0 {
+            // Remove trailing null character if present
+            if buffer.last() == Some(&0) {
+                buffer.pop();
+            }
             let user_name = OsString::from_wide(&buffer).to_string_lossy().into_owned();
             println!("User: {}", user_name);
             return Ok(Some(user_name));

@@ -18,7 +18,7 @@ struct User {
     user_name: String,
 }
 
-pub async fn create_user(pool: &SqlitePool, user_name: &str) -> Result<i64, SqlxError> {
+pub async fn create_user(pool: &SqlitePool, user_name: String) -> Result<i64, SqlxError> {
     let query = sqlx::query(
         "
         INSERT INTO Users (UserName) VALUES (?)
@@ -29,7 +29,7 @@ pub async fn create_user(pool: &SqlitePool, user_name: &str) -> Result<i64, Sqlx
     return Ok(result.last_insert_rowid());
 }
 
-pub async fn update_user(pool: &SqlitePool, user_id: i32, new_user_name: &str) -> Result<u64, SqlxError> {
+pub async fn update_user(pool: &SqlitePool, user_id: i32, new_user_name: String) -> Result<u64, SqlxError> {
     let query = sqlx::query(
         "
         UPDATE Users SET UserName = ? WHERE UserID = ?
@@ -110,28 +110,25 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         .setup(|app_handler| {
             let app_handle = app_handler.app_handle();
             tauri::async_runtime::spawn(async move {
-
                 match initialize_sqlite_database().await {
                     Ok(pool) => {
-                        println!("Database initalized");
+                        log::info!("Database initalized");
                         match get_user_name() {
                             Ok(user) => {
-                                create_user(&pool, &user.unwrap()).await;
+                                if let Err(err) = create_user(&pool, user.unwrap()).await {
+                                    log::error!("Error creating user. Error code: {}", err)
+                                }
+                            }  
+                            Err(err) => {
+                                log::error!("Unable to get user. Error: {}", err.unwrap_or_else(|| 1))
                             }
-                            Err(err) => {}
                         }
                     }
                     Err(err) => {
-                        eprintln!("Failed to initalize database: {}", err);
+                        log::error!("Failed to initalize database. Error: {}", err);
                         app_handle.exit(1);
                     }
                 }
-                // if let Err(e) = initialize_sqlite_database().await {
-                //     eprintln!("Failed to initalize database: {}", e);
-                //     app_handle.exit(1);
-                // } else {
-                //     println!("Database initalized")
-                // }
             });
             Ok(())
         })
