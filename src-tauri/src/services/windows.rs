@@ -64,7 +64,7 @@ fn get_foreground_window() -> Result<Option<String>, Option<u32>> {
     return Ok(Some(window))
 }
 
-async fn start_tacker() {
+pub async fn start_tacker() {
     let mut interval = time::interval(Duration::from_secs(5));
     loop {
         interval.tick().await;
@@ -91,12 +91,6 @@ fn get_executable_name() {
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("windows")
-        .setup(|app_handler| {
-            tauri::async_runtime::spawn( async move {
-                start_tacker().await;
-            });
-            Ok(())
-        })
         .invoke_handler(tauri::generate_handler![get_foreground_window])
         .build()
 }
