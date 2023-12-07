@@ -56,7 +56,7 @@ fn main() {
                                 log::error!("Error creating user. Error code: {}", err);
                               }
                             }
-                            start_tacker(pool.clone()).await;
+                            start_tacker(pool.clone(), user_string).await;
                           }
                           Err(err) => {
                             log::error!("Database error. Error code: {}", err)

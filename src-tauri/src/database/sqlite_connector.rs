@@ -14,6 +14,13 @@ use chrono::Local;
 const DATABASE_URL:&str = "sqlite:watchdog.db";
 
 #[derive(Debug, sqlx::FromRow)]
+pub struct ApplicationWindow {
+    pub window_id: i64,
+    pub application_id: i64,
+    pub window_name: String,
+}
+
+#[derive(Debug, sqlx::FromRow)]
 pub struct Application {
     pub application_id: i64,
     pub executable_name: String,
@@ -38,6 +45,30 @@ pub async fn create_usage_logs(pool: &SqlitePool, user_id: i64, window_id: i64) 
         .execute(pool)
         .await?;
     return Ok(query.last_insert_rowid());
+}
+
+pub async fn update_usage_logs_time(pool: &SqlitePool, usage_logs_id: i64, time: i64) -> Result<u64, SqlxError> {
+    let query = sqlx::query(
+        "
+        UPDATE UsageLogs SET TimeSpent = TimeSpent + ? WHERE LogID = ?
+        "
+    )
+        .bind(time)
+        .bind(usage_logs_id);
+    let result = query.execute(pool).await?;
+    return Ok(result.rows_affected());
+}
+
+pub async fn select_application_window_by_window_name(pool: &SqlitePool, window_name: &str) -> Result<ApplicationWindow, SqlxError> {
+    let application_window = sqlx::query_as::<_, ApplicationWindow>(
+        "
+        SELECT WindowID as window_id, ApplicationID as application_id, WindowName as window_name FROM ApplicationWindows WHERE WindowName = ?
+        "
+    )
+        .bind(window_name)
+        .fetch_one(pool)
+        .await?;
+    Ok(application_window)
 }
 
 pub async fn application_window_exists(pool: &SqlitePool, application_window_name: &str) -> Result<bool, SqlxError> {

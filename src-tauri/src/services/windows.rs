@@ -32,7 +32,10 @@ use sqlx::sqlite::SqlitePool;
 use crate::database::sqlite_connector::{
     create_application, 
     create_application_window,
+    create_usage_logs,
     select_application_by_executable_name,
+    select_application_window_by_window_name,
+    select_user_by_user_name,
 };
 
 fn get_process_handle(process_id: u32) -> Result<*mut c_void, Option<u32>> {
@@ -121,14 +124,17 @@ fn get_executable_name() -> Result<Option<String>, Option<u32>> {
     }
 }
 
-pub async fn start_tacker(pool: SqlitePool) {
-    let mut interval = time::interval(Duration::from_secs(5));
+pub async fn start_tacker(pool: SqlitePool, user_name: String) {
+    let mut interval = time::interval(Duration::from_secs(3));
     loop {
         interval.tick().await;
+        let mut application_id:Option<i64> = None;
+        let mut window_id:Option<i64> = None;
+
         match get_executable_name() {
             Ok(executable_name) => {
                 if let Some(executable_string) = executable_name {
-                    let mut application_id:Option<i64> = None;
+                    // let mut application_id:Option<i64> = None;
                     match create_application(&pool, &executable_string).await {
                         Ok(id) => {application_id = Some(id);}
                         Err(err) => {
@@ -139,28 +145,52 @@ pub async fn start_tacker(pool: SqlitePool) {
                             } else {log::error!("{}", err);}
                         }
                     }
-                    match get_foreground_window() {
-                        Ok(window_name) => {
-                            if let Some(window_string) = window_name {
-                                match create_application_window(&pool, application_id, &window_string).await {
-                                    Ok(_) => {}
-                                    Err(err) => {
-                                        if err.as_database_error().unwrap().is_unique_violation() {
-                                        } else {log::error!("{}", err);}
-                                    }
-                                }
-                            }
+                }
+            }
+            Err(err) => {log::error!("Error code {}", err.unwrap_or_else(|| 1));}
+        }
+        match get_foreground_window() {
+            Ok(window_name) => {
+                if let Some(window_string) = window_name {
+                    match create_application_window(&pool, application_id, &window_string).await {
+                        Ok(id) => {
+                            window_id = Some(id);
+                            // if let Ok(user) = select_user_by_user_name(&pool, &user_name).await {
+                            //     match create_usage_logs(&pool, user.user_id, window_id).await {
+                            //         Ok(_) => {}
+                            //         Err(err) => {log::error!("{}", err);}
+                            //     }
+                            // }
                         }
-                        Err(err) => {log::error!("Error code: {}", err.unwrap_or_else(||1));}
+                        Err(err) => {
+                            if err.as_database_error().unwrap().is_unique_violation() {
+                                if let Ok(application_window) = select_application_window_by_window_name(&pool, &window_string).await {
+                                    window_id = Some(application_window.window_id);
+                                }
+                            } else {log::error!("{}", err);}
+                        }
                     }
                 }
             }
-            Err(err) => {
-                if let Some(e) = err {
-                    println!("Error code: {:?}", e);
+            Err(err) => {log::error!("Error code: {}", err.unwrap_or_else(||1));}
+        }
+         
+        // TODO If window id is the same and the date is the same as today's date update usage logs instead of create a new one
+        match select_user_by_user_name(&pool, &user_name).await {
+            Ok(user) => {
+                if let Some(id) = window_id {
+                    match create_usage_logs(&pool, user.user_id, id).await {
+                        Ok(_id) => {}
+                        Err(err) => {log::error!("{}", err);}
+                    }
+                } else {
+                    
                 }
             }
+            Err(err) => {log::error!("{}", err);}
         }
+
+
     }
 }
 
