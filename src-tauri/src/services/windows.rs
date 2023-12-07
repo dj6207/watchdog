@@ -29,7 +29,12 @@ use winapi::um::winnt::{
 };
 
 use sqlx::sqlite::SqlitePool;
-use crate::database::sqlite_connector::{create_application, application_exist};
+use crate::database::sqlite_connector::{
+    create_application, 
+    application_exists,
+    create_application_window,
+    application_window_exists,
+};
 
 fn get_process_handle(process_id: u32) -> Result<*mut c_void, Option<u32>> {
     unsafe {
@@ -133,16 +138,55 @@ pub async fn start_tacker(pool: SqlitePool) {
         //     }
         // }
 
-        // ????
+        // ???? wtf try to reduce match statements later
+        // TODO
+        // Right now app only inserts new applicaiton window if exe name is found
+        // Make it so that even if not exe name is found insert new application window just with exe id as null
         match get_executable_name() {
             Ok(executable_name) => {
                 if let Some(executable_string) = executable_name {
-                    match application_exist(&pool, executable_string.clone()).await {
-                        Ok(application_exist) => {
-                            if !application_exist {
-                                if let Err(err) = create_application(&pool, executable_string).await {
-                                    log::error!("{}", err);
+                    match application_exists(&pool, executable_string.clone()).await {
+                        Ok(application_exists) => {
+                            if !application_exists {
+                                // let application_id:Option<i64> = None;
+                                match create_application(&pool, executable_string).await {
+                                    Ok(id) => {
+                                        match get_foreground_window() {
+                                            Ok(window_name) => {
+                                                if let Some(window_string) = window_name {
+                                                    match application_window_exists(&pool, window_string.clone()).await {
+                                                        Ok(application_window_exists) => {
+                                                            if !application_window_exists {
+                                                                match create_application_window(&pool, id, window_string).await {
+                                                                    Ok(row) => {
+                                                                        log::info!("{}", row);
+                                                                    }
+                                                                    Err(err) => {
+                                                                        log::error!("{}", err);
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                        Err(err) => {
+                                                            log::error!("{}", err);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            Err(err) => {
+                                                if let Some(e) = err {
+                                                    log::error!("{}", e);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Err(err) => {
+                                        log::error!("{}", err);
+                                    }
                                 }
+                                // if let Err(err) = create_application(&pool, executable_string).await {
+                                //     log::error!("{}", err);
+                                // }
                             }
                         }
                         Err(err) => {

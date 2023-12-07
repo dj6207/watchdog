@@ -8,7 +8,7 @@ use tauri::{
 mod services;
 mod database;
 
-use crate::database::sqlite_connector::{initialize_sqlite_database, create_user, user_name_exist};
+use crate::database::sqlite_connector::{initialize_sqlite_database, create_user, user_name_exists};
 use crate::services::windows::start_tacker;
 use crate::services::user::get_user_name;
 
@@ -48,7 +48,7 @@ fn main() {
                   log::info!("Database initalized");
                   match get_user_name() {
                       Ok(user) => {
-                        match user_name_exist(&pool, user.clone().unwrap()).await {
+                        match user_name_exists(&pool, user.clone().unwrap()).await {
                           Ok(user_exist) => {
                             if !user_exist {
                               if let Err(err) = create_user(&pool, user.unwrap()).await {

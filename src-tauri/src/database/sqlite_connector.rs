@@ -15,11 +15,11 @@ const DATABASE_URL:&str = "sqlite:watchdog.db";
 
 #[derive(sqlx::FromRow)]
 struct User {
-    user_id: i32,
+    user_id: i64,
     user_name: String,
 }
 
-pub async fn create_usage_logs(pool: &SqlitePool, user_id: i32, window_id: i32) -> Result<i64, SqlxError> {
+pub async fn create_usage_logs(pool: &SqlitePool, user_id: i64, window_id: i64) -> Result<i64, SqlxError> {
     let query = sqlx::query(
         "
         INSERT INTO UsageLogs (UserID, WindowID, Date, TimeSpent) VALUES (?, ?, ?, ?)
@@ -34,7 +34,20 @@ pub async fn create_usage_logs(pool: &SqlitePool, user_id: i32, window_id: i32) 
     return Ok(query.last_insert_rowid());
 }
 
-pub async fn create_application_windows(pool: &SqlitePool, application_id: i32, window_name: String) -> Result<i64, SqlxError> {
+pub async fn application_window_exists(pool: &SqlitePool, application_window_name: String) -> Result<bool, SqlxError> {
+    let query = sqlx::query(
+        "
+        SELECT EXISTS(SELECT 1 FROM ApplicationWindows WHERE WindowName = ?)
+        "
+    )
+        .bind(application_window_name)
+        .fetch_one(pool)
+        .await?
+        .get::<i32, _>(0) != 0;
+    return Ok(query);
+}
+
+pub async fn create_application_window(pool: &SqlitePool, application_id: i64, window_name: String) -> Result<i64, SqlxError> {
     let query = sqlx::query(
         "
         INSERT INTO ApplicationWindows (ApplicationID, WindowName) VALUES (?, ?)
@@ -47,7 +60,7 @@ pub async fn create_application_windows(pool: &SqlitePool, application_id: i32, 
     return Ok(query.last_insert_rowid());
 }
 
-pub async fn application_exist(pool: &SqlitePool, executable_name: String) -> Result<bool, SqlxError> {
+pub async fn application_exists(pool: &SqlitePool, executable_name: String) -> Result<bool, SqlxError> {
     let query = sqlx::query(
         "
         SELECT EXISTS(SELECT 1 FROM Applications WHERE ExecutableName = ?)
@@ -71,7 +84,7 @@ pub async fn create_application(pool: &SqlitePool, executable_name: String) -> R
     return Ok(result.last_insert_rowid());
 }
 
-pub async fn user_name_exist(pool: &SqlitePool, user_name: String) -> Result<bool, SqlxError>{
+pub async fn user_name_exists(pool: &SqlitePool, user_name: String) -> Result<bool, SqlxError>{
     let query = sqlx::query(
         "
         SELECT EXISTS(SELECT 1 FROM Users WHERE UserName = ?)
@@ -95,7 +108,7 @@ pub async fn create_user(pool: &SqlitePool, user_name: String) -> Result<i64, Sq
     return Ok(result.last_insert_rowid());
 }
 
-pub async fn update_user(pool: &SqlitePool, user_id: i32, new_user_name: String) -> Result<u64, SqlxError> {
+pub async fn update_user(pool: &SqlitePool, user_id: i64, new_user_name: String) -> Result<u64, SqlxError> {
     let query = sqlx::query(
         "
         UPDATE Users SET UserName = ? WHERE UserID = ?
@@ -107,7 +120,7 @@ pub async fn update_user(pool: &SqlitePool, user_id: i32, new_user_name: String)
     return Ok(result.rows_affected());
 }
 
-pub async fn delete_user(pool: &SqlitePool, user_id: i32) -> Result<u64, SqlxError> {
+pub async fn delete_user(pool: &SqlitePool, user_id: i64) -> Result<u64, SqlxError> {
     let query = sqlx::query(
         "
         DELETE FROM Users WHERE UserID = ?
@@ -130,7 +143,7 @@ pub async fn select_user_from_user_name(pool: &SqlitePool, user_name: String) ->
     Ok(user)
 }
 
-pub async fn select_user_from_user_id(pool: &SqlitePool, user_id: i32) -> Result<User, SqlxError> {
+pub async fn select_user_from_user_id(pool: &SqlitePool, user_id: i64) -> Result<User, SqlxError> {
     let user = sqlx::query_as::<_, User>(
         "
         SELECT UserID, UserName FROM Users WHERE UserID = ?
