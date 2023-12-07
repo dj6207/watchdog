@@ -145,6 +145,19 @@ pub async fn select_application_by_executable_name(pool: &SqlitePool, executable
     Ok(application)
 }
 
+pub async fn window_id_exists_in_usage_logs(pool: &SqlitePool, window_id: i64) -> Result<bool, SqlxError>{
+    let query = sqlx::query(
+        "
+        SELECT EXISTS(SELECT 1 FROM UsageLogs WHERE WindowID = ?)
+        "
+    )
+        .bind(window_id)
+        .fetch_one(pool)
+        .await?
+        .get::<i32, _>(0) != 0;
+    return Ok(query);
+}
+
 pub async fn user_name_exists(pool: &SqlitePool, user_name: &str) -> Result<bool, SqlxError>{
     let query = sqlx::query(
         "

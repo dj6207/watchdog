@@ -36,6 +36,7 @@ use crate::database::sqlite_connector::{
     select_application_by_executable_name,
     select_application_window_by_window_name,
     select_user_by_user_name,
+    window_id_exists_in_usage_logs,
 };
 
 fn get_process_handle(process_id: u32) -> Result<*mut c_void, Option<u32>> {
@@ -153,15 +154,7 @@ pub async fn start_tacker(pool: SqlitePool, user_name: String) {
             Ok(window_name) => {
                 if let Some(window_string) = window_name {
                     match create_application_window(&pool, application_id, &window_string).await {
-                        Ok(id) => {
-                            window_id = Some(id);
-                            // if let Ok(user) = select_user_by_user_name(&pool, &user_name).await {
-                            //     match create_usage_logs(&pool, user.user_id, window_id).await {
-                            //         Ok(_) => {}
-                            //         Err(err) => {log::error!("{}", err);}
-                            //     }
-                            // }
-                        }
+                        Ok(id) => {window_id = Some(id);}
                         Err(err) => {
                             if err.as_database_error().unwrap().is_unique_violation() {
                                 if let Ok(application_window) = select_application_window_by_window_name(&pool, &window_string).await {
@@ -175,14 +168,21 @@ pub async fn start_tacker(pool: SqlitePool, user_name: String) {
             Err(err) => {log::error!("Error code: {}", err.unwrap_or_else(||1));}
         }
          
-        // TODO If window id is the same and the date is the same as today's date update usage logs instead of create a new one
+        // TODO If window id exists and the date is the same as today's date update usage logs instead of create a new one
         match select_user_by_user_name(&pool, &user_name).await {
             Ok(user) => {
                 if let Some(id) = window_id {
-                    match create_usage_logs(&pool, user.user_id, id).await {
-                        Ok(_id) => {}
-                        Err(err) => {log::error!("{}", err);}
-                    }
+                    // Check row have both window id and date at the same time not individually
+                    // if let Ok(exists) = window_id_exists_in_usage_logs(&pool, id).await {
+                    //     if exists {
+                    //         // Update usage logs
+                    //     } else {
+                    //         match create_usage_logs(&pool, user.user_id, id).await {
+                    //             Ok(_id) => {}
+                    //             Err(err) => {log::error!("{}", err);}
+                    //         }
+                    //     }
+                    // }
                 } else {
                     
                 }
