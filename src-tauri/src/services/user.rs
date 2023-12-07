@@ -25,7 +25,7 @@ pub fn get_user_name() -> Result<Option<String>, Option<u32>>{
                 buffer.pop();
             }
             let user_name = OsString::from_wide(&buffer).to_string_lossy().into_owned();
-            println!("User: {}", user_name);
+            log::info!("User: {}", user_name);
             return Ok(Some(user_name));
         } else {
             return Err(None);

@@ -1,7 +1,7 @@
 use tauri::{
     command,
     plugin::{Builder, TauriPlugin},
-    Manager, Runtime,
+    Manager, Runtime, State
 };
 
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool};
@@ -45,6 +45,19 @@ pub async fn create_application_windows(pool: &SqlitePool, application_id: i32, 
         .execute(pool)
         .await?;
     return Ok(query.last_insert_rowid());
+}
+
+pub async fn application_exist(pool: &SqlitePool, executable_name: String) -> Result<bool, SqlxError> {
+    let query = sqlx::query(
+        "
+        SELECT EXISTS(SELECT 1 FROM Applications WHERE ExecutableName = ?)
+        "
+    )
+        .bind(executable_name)
+        .fetch_one(pool)
+        .await?
+        .get::<i32, _>(0) != 0;
+    return Ok(query);
 }
 
 pub async fn create_application(pool: &SqlitePool, executable_name: String) -> Result<i64, SqlxError> {

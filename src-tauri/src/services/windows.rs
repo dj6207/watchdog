@@ -28,6 +28,9 @@ use winapi::um::winnt::{
     PROCESS_VM_READ
 };
 
+use sqlx::sqlite::SqlitePool;
+use crate::database::sqlite_connector::{create_application, application_exist};
+
 fn get_process_handle(process_id: u32) -> Result<*mut c_void, Option<u32>> {
     unsafe {
         let process_handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, process_id);
@@ -89,11 +92,10 @@ fn get_foreground_window() -> Result<Option<String>, Option<u32>> {
     let mut buffer = vec![0u16; (window_name_length + 1) as usize];
     let window_name = get_window_name(window_handle, window_name_length, &mut buffer)?;
     let window = OsString::from_wide(&buffer[..window_name]).to_string_lossy().into_owned();
-    println!("Window: {}", window);
+    log::info!("Window: {}", window);
     return Ok(Some(window))
 }
 
-// TODO Need to test
 fn get_executable_name() -> Result<Option<String>, Option<u32>> {
     let window_handle = get_foreground_window_handle()?;
     if window_handle.is_null() {
@@ -109,19 +111,44 @@ fn get_executable_name() -> Result<Option<String>, Option<u32>> {
             return Err(Some(GetLastError()));
         }
         executable_name.truncate(module_file_name as usize);
-        return Ok(OsString::from_wide(&executable_name).to_string_lossy().into_owned().split('\\').last().map(|s| s.to_string()))
+        let window_executable = OsString::from_wide(&executable_name).to_string_lossy().into_owned().split('\\').last().map(|s| s.to_string());
+        log::info!("Executable: {}", window_executable.clone().unwrap());
+        return Ok(window_executable)
     }
 }
 
-pub async fn start_tacker() {
+pub async fn start_tacker(pool: SqlitePool) {
     let mut interval = time::interval(Duration::from_secs(5));
     loop {
         interval.tick().await;
-        match get_foreground_window() {
-            Ok(window_name) => {
-                if let Some(name) = window_name {
-                    // println!("Window Name: {}", name);
-                    continue;
+        // match get_foreground_window() {
+        //     Ok(window_name) => {
+        //         if let Some(window_string) = window_name {
+        //         }
+        //     }
+        //     Err(err) => {
+        //         if let Some(e) = err {
+        //             println!("Error code: {:?}", e);
+        //         }
+        //     }
+        // }
+
+        // ????
+        match get_executable_name() {
+            Ok(executable_name) => {
+                if let Some(executable_string) = executable_name {
+                    match application_exist(&pool, executable_string.clone()).await {
+                        Ok(application_exist) => {
+                            if !application_exist {
+                                if let Err(err) = create_application(&pool, executable_string).await {
+                                    log::error!("{}", err);
+                                }
+                            }
+                        }
+                        Err(err) => {
+                            log::error!("{}", err);
+                        }
+                    }
                 }
             }
             Err(err) => {
