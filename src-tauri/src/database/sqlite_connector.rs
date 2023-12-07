@@ -13,10 +13,16 @@ use chrono::Local;
 
 const DATABASE_URL:&str = "sqlite:watchdog.db";
 
-#[derive(sqlx::FromRow)]
-struct User {
-    user_id: i64,
-    user_name: String,
+#[derive(Debug, sqlx::FromRow)]
+pub struct Application {
+    pub application_id: i64,
+    pub executable_name: String,
+}
+
+#[derive(Debug, sqlx::FromRow)]
+pub struct User {
+    pub user_id: i64,
+    pub user_name: String,
 }
 
 pub async fn create_usage_logs(pool: &SqlitePool, user_id: i64, window_id: i64) -> Result<i64, SqlxError> {
@@ -34,7 +40,7 @@ pub async fn create_usage_logs(pool: &SqlitePool, user_id: i64, window_id: i64) 
     return Ok(query.last_insert_rowid());
 }
 
-pub async fn application_window_exists(pool: &SqlitePool, application_window_name: String) -> Result<bool, SqlxError> {
+pub async fn application_window_exists(pool: &SqlitePool, application_window_name: &str) -> Result<bool, SqlxError> {
     let query = sqlx::query(
         "
         SELECT EXISTS(SELECT 1 FROM ApplicationWindows WHERE WindowName = ?)
@@ -47,20 +53,32 @@ pub async fn application_window_exists(pool: &SqlitePool, application_window_nam
     return Ok(query);
 }
 
-pub async fn create_application_window(pool: &SqlitePool, application_id: i64, window_name: String) -> Result<i64, SqlxError> {
-    let query = sqlx::query(
-        "
-        INSERT INTO ApplicationWindows (ApplicationID, WindowName) VALUES (?, ?)
-        "
-    )
-        .bind(application_id)
-        .bind(window_name)
-        .execute(pool)
-        .await?;
-    return Ok(query.last_insert_rowid());
+pub async fn create_application_window(pool: &SqlitePool, application_id: Option<i64>, window_name: &str) -> Result<i64, SqlxError> {
+    if let Some(id) = application_id {  
+        let query = sqlx::query(
+            "
+            INSERT INTO ApplicationWindows (ApplicationID, WindowName) VALUES (?, ?)
+            "
+        )
+            .bind(id)
+            .bind(window_name)
+            .execute(pool)
+            .await?;
+        return Ok(query.last_insert_rowid());
+    } else {
+        let query = sqlx::query(
+            "
+            INSERT INTO ApplicationWindows (ApplicationID, WindowName) VALUES (NULL, ?)
+            "
+        )
+            .bind(window_name)
+            .execute(pool)
+            .await?;
+        return Ok(query.last_insert_rowid());
+    }
 }
 
-pub async fn application_exists(pool: &SqlitePool, executable_name: String) -> Result<bool, SqlxError> {
+pub async fn application_exists(pool: &SqlitePool, executable_name: &str) -> Result<bool, SqlxError> {
     let query = sqlx::query(
         "
         SELECT EXISTS(SELECT 1 FROM Applications WHERE ExecutableName = ?)
@@ -73,7 +91,7 @@ pub async fn application_exists(pool: &SqlitePool, executable_name: String) -> R
     return Ok(query);
 }
 
-pub async fn create_application(pool: &SqlitePool, executable_name: String) -> Result<i64, SqlxError> {
+pub async fn create_application(pool: &SqlitePool, executable_name: &str) -> Result<i64, SqlxError> {
     let query = sqlx::query(
         "
         INSERT INTO Applications (ExecutableName) VALUES (?)
@@ -84,7 +102,19 @@ pub async fn create_application(pool: &SqlitePool, executable_name: String) -> R
     return Ok(result.last_insert_rowid());
 }
 
-pub async fn user_name_exists(pool: &SqlitePool, user_name: String) -> Result<bool, SqlxError>{
+pub async fn select_application_by_executable_name(pool: &SqlitePool, executable_name: &str) -> Result<Application, SqlxError> {
+    let application = sqlx::query_as::<_, Application>(
+        "
+        SELECT ApplicationID as application_id, ExecutableName as executable_name FROM Applications WHERE ExecutableName = ?
+        "
+    )
+        .bind(executable_name)
+        .fetch_one(pool)
+        .await?;
+    Ok(application)
+}
+
+pub async fn user_name_exists(pool: &SqlitePool, user_name: &str) -> Result<bool, SqlxError>{
     let query = sqlx::query(
         "
         SELECT EXISTS(SELECT 1 FROM Users WHERE UserName = ?)
@@ -97,7 +127,7 @@ pub async fn user_name_exists(pool: &SqlitePool, user_name: String) -> Result<bo
     return Ok(query);
 }
 
-pub async fn create_user(pool: &SqlitePool, user_name: String) -> Result<i64, SqlxError> {
+pub async fn create_user(pool: &SqlitePool, user_name: &str) -> Result<i64, SqlxError> {
     let query = sqlx::query(
         "
         INSERT INTO Users (UserName) VALUES (?)
@@ -108,7 +138,7 @@ pub async fn create_user(pool: &SqlitePool, user_name: String) -> Result<i64, Sq
     return Ok(result.last_insert_rowid());
 }
 
-pub async fn update_user(pool: &SqlitePool, user_id: i64, new_user_name: String) -> Result<u64, SqlxError> {
+pub async fn update_user(pool: &SqlitePool, user_id: i64, new_user_name: &str) -> Result<u64, SqlxError> {
     let query = sqlx::query(
         "
         UPDATE Users SET UserName = ? WHERE UserID = ?
@@ -131,10 +161,10 @@ pub async fn delete_user(pool: &SqlitePool, user_id: i64) -> Result<u64, SqlxErr
     return Ok(result.rows_affected());
 }
 
-pub async fn select_user_from_user_name(pool: &SqlitePool, user_name: String) -> Result<User, SqlxError> {
+pub async fn select_user_by_user_name(pool: &SqlitePool, user_name: &str) -> Result<User, SqlxError> {
     let user = sqlx::query_as::<_, User>(
         "
-        SELECT UserID, UserName FROM Users WHERE UserName = ?
+        SELECT UserID as user_id, UserName as user_name FROM Users WHERE UserName = ?
         "
     )
         .bind(user_name)
@@ -143,10 +173,10 @@ pub async fn select_user_from_user_name(pool: &SqlitePool, user_name: String) ->
     Ok(user)
 }
 
-pub async fn select_user_from_user_id(pool: &SqlitePool, user_id: i64) -> Result<User, SqlxError> {
+pub async fn select_user_by_user_id(pool: &SqlitePool, user_id: i64) -> Result<User, SqlxError> {
     let user = sqlx::query_as::<_, User>(
         "
-        SELECT UserID, UserName FROM Users WHERE UserID = ?
+        SELECT UserID as user_id, UserName as user_name FROM Users WHERE UserID = ?
         "
     )
         .bind(user_id)
@@ -174,7 +204,7 @@ pub async fn initialize_sqlite_database() -> Result<Pool<Sqlite>, SqlxError>{
         CREATE TABLE IF NOT EXISTS ApplicationWindows (
             WindowID INTEGER PRIMARY KEY AUTOINCREMENT,
             ApplicationID INTEGER,
-            WindowName TEXT,
+            WindowName TEXT UNIQUE,
             FOREIGN KEY (ApplicationID) REFERENCES Applications(ApplicationID)
         );
 

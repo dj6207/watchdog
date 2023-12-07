@@ -31,9 +31,8 @@ use winapi::um::winnt::{
 use sqlx::sqlite::SqlitePool;
 use crate::database::sqlite_connector::{
     create_application, 
-    application_exists,
     create_application_window,
-    application_window_exists,
+    select_application_by_executable_name,
 };
 
 fn get_process_handle(process_id: u32) -> Result<*mut c_void, Option<u32>> {
@@ -126,72 +125,33 @@ pub async fn start_tacker(pool: SqlitePool) {
     let mut interval = time::interval(Duration::from_secs(5));
     loop {
         interval.tick().await;
-        // match get_foreground_window() {
-        //     Ok(window_name) => {
-        //         if let Some(window_string) = window_name {
-        //         }
-        //     }
-        //     Err(err) => {
-        //         if let Some(e) = err {
-        //             println!("Error code: {:?}", e);
-        //         }
-        //     }
-        // }
-
-        // ???? wtf try to reduce match statements later
-        // TODO
-        // Right now app only inserts new applicaiton window if exe name is found
-        // Make it so that even if not exe name is found insert new application window just with exe id as null
         match get_executable_name() {
             Ok(executable_name) => {
                 if let Some(executable_string) = executable_name {
-                    match application_exists(&pool, executable_string.clone()).await {
-                        Ok(application_exists) => {
-                            if !application_exists {
-                                // let application_id:Option<i64> = None;
-                                match create_application(&pool, executable_string).await {
-                                    Ok(id) => {
-                                        match get_foreground_window() {
-                                            Ok(window_name) => {
-                                                if let Some(window_string) = window_name {
-                                                    match application_window_exists(&pool, window_string.clone()).await {
-                                                        Ok(application_window_exists) => {
-                                                            if !application_window_exists {
-                                                                match create_application_window(&pool, id, window_string).await {
-                                                                    Ok(row) => {
-                                                                        log::info!("{}", row);
-                                                                    }
-                                                                    Err(err) => {
-                                                                        log::error!("{}", err);
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                        Err(err) => {
-                                                            log::error!("{}", err);
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            Err(err) => {
-                                                if let Some(e) = err {
-                                                    log::error!("{}", e);
-                                                }
-                                            }
-                                        }
-                                    }
+                    let mut application_id:Option<i64> = None;
+                    match create_application(&pool, &executable_string).await {
+                        Ok(id) => {application_id = Some(id);}
+                        Err(err) => {
+                            if err.as_database_error().unwrap().is_unique_violation() {
+                                if let Ok(application) = select_application_by_executable_name(&pool, &executable_string).await {
+                                    application_id = Some(application.application_id);
+                                }
+                            } else {log::error!("{}", err);}
+                        }
+                    }
+                    match get_foreground_window() {
+                        Ok(window_name) => {
+                            if let Some(window_string) = window_name {
+                                match create_application_window(&pool, application_id, &window_string).await {
+                                    Ok(_) => {}
                                     Err(err) => {
-                                        log::error!("{}", err);
+                                        if err.as_database_error().unwrap().is_unique_violation() {
+                                        } else {log::error!("{}", err);}
                                     }
                                 }
-                                // if let Err(err) = create_application(&pool, executable_string).await {
-                                //     log::error!("{}", err);
-                                // }
                             }
                         }
-                        Err(err) => {
-                            log::error!("{}", err);
-                        }
+                        Err(err) => {log::error!("Error code: {}", err.unwrap_or_else(||1));}
                     }
                 }
             }

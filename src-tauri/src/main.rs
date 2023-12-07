@@ -47,11 +47,12 @@ fn main() {
               Ok(pool) => {
                   log::info!("Database initalized");
                   match get_user_name() {
-                      Ok(user) => {
-                        match user_name_exists(&pool, user.clone().unwrap()).await {
+                      Ok(user_name) => {
+                        let user_string = user_name.unwrap();
+                        match user_name_exists(&pool, &user_string).await {
                           Ok(user_exist) => {
                             if !user_exist {
-                              if let Err(err) = create_user(&pool, user.unwrap()).await {
+                              if let Err(err) = create_user(&pool, &user_string).await {
                                 log::error!("Error creating user. Error code: {}", err);
                               }
                             }
