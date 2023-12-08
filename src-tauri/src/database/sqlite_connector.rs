@@ -4,7 +4,7 @@ use tauri::{
     Manager, Runtime, State
 };
 
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePool};
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqliteRow};
 use sqlx::{Pool, Sqlite, Row, Error as SqlxError};
 
 use std::str::FromStr;
@@ -49,18 +49,39 @@ pub struct User {
     pub user_name: String,
 }
 
-// SELECT u.LogID, us.UserName, aw.WindowName, u.Date, u.TimeSpent
-// FROM UsageLogs u
-// INNER JOIN Users us ON u.UserID = us.UserID
-// INNER JOIN ApplicationWindows aw ON u.WindowID = aw.WindowID
-// WHERE u.Date = "2023-12-07"
+// SELECT ul.LogID, aw.WindowName, a.ExecutableName, ul.TimeSpent
+// FROM UsageLogs ul
+// INNER JOIN ApplicationWindows aw ON ul.WindowID = aw.WindowID
+// INNER JOIN Applications a ON aw.ApplicationID = a.ApplicationID
+// WHERE ul.Date = ?
 
-// async fn get_usage_log_data(pool_state: State<'_, Arc<SqlitePool>>, date: String) {
-//     let query = sqlx::query(
-//         "
-//         "
-//     )
-// }
+async fn get_usage_log_data(pool_state: State<'_, Arc<Pool<Sqlite>>>, date: String) -> Result<Vec<UsageLogData>, SqlxError>{
+    let pool: Arc<Pool<Sqlite>> = pool_state.inner().clone();
+    let mut usage_log_data: Vec<UsageLogData> = Vec::new();
+    let query = sqlx::query(
+        "
+        SELECT ul.LogID, aw.WindowName, a.ExecutableName, ul.TimeSpent
+        FROM UsageLogs ul
+        INNER JOIN ApplicationWindows aw ON ul.WindowID = aw.WindowID
+        INNER JOIN Applications a ON aw.ApplicationID = a.ApplicationID
+        WHERE ul.Date = ?
+        "
+    )
+        .bind(date)
+        .fetch_all(&*pool)
+        .await?;
+    for row in query {
+        usage_log_data.push(
+            UsageLogData {
+                log_id: row.get(0),
+                window_name: row.get(1),
+                executable_name: row.get(2),
+                time_spent: row.get(3),
+            }
+        )
+    }
+    Ok(usage_log_data)
+}
 
 // Application Window SQL Operations
 
