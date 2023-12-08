@@ -35,9 +35,13 @@ use crate::database::sqlite_connector::{
     create_usage_logs,
     select_application_by_executable_name,
     select_application_window_by_window_name,
+    select_usage_log_by_window_id,
     select_user_by_user_name,
-    window_id_exists_in_usage_logs,
+    usage_logs_exists, 
+    update_usage_logs_time,
 };
+
+const MONITOR_INTERVAL:u64 = 5;
 
 fn get_process_handle(process_id: u32) -> Result<*mut c_void, Option<u32>> {
     unsafe {
@@ -126,7 +130,7 @@ fn get_executable_name() -> Result<Option<String>, Option<u32>> {
 }
 
 pub async fn start_tacker(pool: SqlitePool, user_name: String) {
-    let mut interval = time::interval(Duration::from_secs(3));
+    let mut interval = time::interval(Duration::from_secs(MONITOR_INTERVAL));
     loop {
         interval.tick().await;
         let mut application_id:Option<i64> = None;
@@ -166,31 +170,29 @@ pub async fn start_tacker(pool: SqlitePool, user_name: String) {
                 }
             }
             Err(err) => {log::error!("Error code: {}", err.unwrap_or_else(||1));}
-        }
-         
-        // TODO If window id exists and the date is the same as today's date update usage logs instead of create a new one
+        } 
         match select_user_by_user_name(&pool, &user_name).await {
             Ok(user) => {
                 if let Some(id) = window_id {
-                    // Check row have both window id and date at the same time not individually
-                    // if let Ok(exists) = window_id_exists_in_usage_logs(&pool, id).await {
-                    //     if exists {
-                    //         // Update usage logs
-                    //     } else {
-                    //         match create_usage_logs(&pool, user.user_id, id).await {
-                    //             Ok(_id) => {}
-                    //             Err(err) => {log::error!("{}", err);}
-                    //         }
-                    //     }
-                    // }
-                } else {
-                    
+                    if let Ok(exists) = usage_logs_exists(&pool, id).await {
+                        if exists {
+                            if let Ok(usage_log) = select_usage_log_by_window_id(&pool, id).await {
+                                match update_usage_logs_time(&pool, usage_log.log_id, MONITOR_INTERVAL as i64).await {
+                                    Ok(_rows) => {}
+                                    Err(err) => {log::error!("{}", err);}
+                                }
+                            }
+                        } else {
+                            match create_usage_logs(&pool, user.user_id, id).await {
+                                Ok(_id) => {}
+                                Err(err) => {log::error!("{}", err);}
+                            }
+                        }
+                    }
                 }
             }
             Err(err) => {log::error!("{}", err);}
         }
-
-
     }
 }
 

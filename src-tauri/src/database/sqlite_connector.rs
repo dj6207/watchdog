@@ -14,6 +14,15 @@ use chrono::Local;
 const DATABASE_URL:&str = "sqlite:watchdog.db";
 
 #[derive(Debug, sqlx::FromRow)]
+pub struct UsageLog {
+    pub log_id: i64,
+    pub user_id: i64,
+    pub window_id: i64,
+    pub date: String,
+    pub time_spent: i64,
+}
+
+#[derive(Debug, sqlx::FromRow)]
 pub struct ApplicationWindow {
     pub window_id: i64,
     pub application_id: i64,
@@ -80,7 +89,7 @@ pub async fn application_window_exists(pool: &SqlitePool, application_window_nam
         .bind(application_window_name)
         .fetch_one(pool)
         .await?
-        .get::<i32, _>(0) != 0;
+        .try_get::<i32, _>(0)? != 0;
     return Ok(query);
 }
 
@@ -118,7 +127,7 @@ pub async fn application_exists(pool: &SqlitePool, executable_name: &str) -> Res
         .bind(executable_name)
         .fetch_one(pool)
         .await?
-        .get::<i32, _>(0) != 0;
+        .try_get::<i32, _>(0)? != 0;
     return Ok(query);
 }
 
@@ -145,17 +154,31 @@ pub async fn select_application_by_executable_name(pool: &SqlitePool, executable
     Ok(application)
 }
 
-pub async fn window_id_exists_in_usage_logs(pool: &SqlitePool, window_id: i64) -> Result<bool, SqlxError>{
+pub async fn usage_logs_exists(pool: &SqlitePool, window_id: i64) -> Result<bool, SqlxError>{
     let query = sqlx::query(
         "
-        SELECT EXISTS(SELECT 1 FROM UsageLogs WHERE WindowID = ?)
+        SELECT EXISTS(SELECT 1 FROM UsageLogs WHERE WindowID = ? AND Date = ?)
         "
     )
         .bind(window_id)
+        .bind(Local::now().format("%Y-%m-%d").to_string())
         .fetch_one(pool)
         .await?
-        .get::<i32, _>(0) != 0;
+        .try_get::<i32, _>(0)? != 0;
     return Ok(query);
+}
+
+pub async fn select_usage_log_by_window_id(pool: &SqlitePool, window_id: i64) -> Result<UsageLog, SqlxError> {
+    let usage_log = sqlx::query_as::<_, UsageLog>(
+        "
+        SELECT LogID as log_id, UserID as user_id, WindowID as window_id, Date as date, TimeSpent as time_spent FROM UsageLogs WHERE WindowID = ? AND Date = ?
+        "
+    )
+        .bind(window_id)
+        .bind(Local::now().format("%Y-%m-%d").to_string())
+        .fetch_one(pool)
+        .await?;
+    Ok(usage_log)
 }
 
 pub async fn user_name_exists(pool: &SqlitePool, user_name: &str) -> Result<bool, SqlxError>{
@@ -167,7 +190,7 @@ pub async fn user_name_exists(pool: &SqlitePool, user_name: &str) -> Result<bool
         .bind(user_name)
         .fetch_one(pool)
         .await?
-        .get::<i32, _>(0) != 0;
+        .try_get::<i32, _>(0)? != 0;
     return Ok(query);
 }
 
