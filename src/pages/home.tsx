@@ -12,6 +12,12 @@ export const Home: React.FC = () => {
         { name: 'Group D', value: 200 },
     ];
 
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = (today.getMonth() + 1).toString().padStart(2, '0');
+    const day = today.getDate().toString().padStart(2, '0')
+    const date = `${year}-${month}-${day}`;
+
     const isDbConnected = async () => {
       const connected = await invoke("plugin:sqlite_connector|is_sqlite_connected");
       console.log(connected)
@@ -19,11 +25,6 @@ export const Home: React.FC = () => {
 
     // Add date parameter
     const getUsageLogData = async ():Promise<UsageLogData[]> => {
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = (today.getMonth() + 1).toString().padStart(2, '0');
-      const day = today.getDate().toString().padStart(2, '0')
-      const date = `${year}-${month}-${day}`;
       const data = await invoke<any[]>("plugin:sqlite_connector|get_usage_log_data", { date: date });
       const mappedData:UsageLogData[] = data.map(log => ({
         logId: log.log_id,
