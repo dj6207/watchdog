@@ -9,33 +9,37 @@ export const Home: React.FC = () => {
         { name: 'Group B', value: 300 },
         { name: 'Group C', value: 300 },
         { name: 'Group D', value: 200 },
-      ];
-      
+    ];
 
-    // const getUserName = async () => {
-    //     const userName = await invoke("plugin:user|get_user_name");
-    //     console.log(userName)
-    // }
+    const isDbConnected = async () => {
+      const connected = await invoke("plugin:sqlite_connector|is_sqlite_connected");
+      console.log(connected)
+    }
 
-    // const getWindowName = async () => {
-    //     const window_name = await invoke("plugin:windows|get_foreground_window");
-    //     console.log(window_name)
-    // }
+    // Add date parameter
+    const getUsageLogData =async () => {
+      const data = await invoke("plugin:sqlite_connector|get_usage_log_data");
+      console.log(data)
+    }
 
     return (
+      <>
         <PieChart width={400} height={400}>
-        <Pie
-          dataKey="value"
-          isAnimationActive={false}
-          data={data}
-          cx={200}
-          cy={200}
-          outerRadius={80}
-          fill="#8884d8"
-          label
-        />
-        <Tooltip />
-        <Legend />
-      </PieChart>
+          <Pie
+            dataKey="value"
+            isAnimationActive={false}
+            data={data}
+            cx={200}
+            cy={200}
+            outerRadius={80}
+            fill="#8884d8"
+            label
+          />
+          <Tooltip />
+          <Legend />
+        </PieChart>
+        <button onClick={isDbConnected}>DB</button>
+        <button onClick={getUsageLogData}>Test</button>
+      </>
     );
 }

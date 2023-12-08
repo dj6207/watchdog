@@ -8,12 +8,32 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqliteRow};
 use sqlx::{Pool, Sqlite, Row, Error as SqlxError};
 
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::Mutex;
+
+use serde::{Serialize, Deserialize};
 
 use chrono::Local;
 
+use crate::SqlitePoolConnection;
+
 const DATABASE_URL:&str = "sqlite:watchdog.db";
 
+#[derive(Debug, thiserror::Error)]
+enum SerializedError {
+    #[error(transparent)]
+    SqliteError(#[from] SqlxError)
+}
+
+impl Serialize for SerializedError {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+      S: serde::ser::Serializer,
+    {
+      serializer.serialize_str(self.to_string().as_ref())
+    }
+}
+
+#[derive(Debug, Serialize)]
 struct UsageLogData {
     log_id: i64,
     window_name: String,
@@ -55,8 +75,10 @@ pub struct User {
 // INNER JOIN Applications a ON aw.ApplicationID = a.ApplicationID
 // WHERE ul.Date = ?
 
-async fn get_usage_log_data(pool_state: State<'_, Arc<Pool<Sqlite>>>, date: String) -> Result<Vec<UsageLogData>, SqlxError>{
-    let pool: Arc<Pool<Sqlite>> = pool_state.inner().clone();
+// TODO Add date parameter
+#[command]
+async fn get_usage_log_data(pool_state: State<'_, SqlitePoolConnection>) -> Result<Vec<UsageLogData>, SerializedError>{
+    let pool = pool_state.connection.lock().unwrap().clone().unwrap();
     let mut usage_log_data: Vec<UsageLogData> = Vec::new();
     let query = sqlx::query(
         "
@@ -67,8 +89,8 @@ async fn get_usage_log_data(pool_state: State<'_, Arc<Pool<Sqlite>>>, date: Stri
         WHERE ul.Date = ?
         "
     )
-        .bind(date)
-        .fetch_all(&*pool)
+        .bind(Local::now().format("%Y-%m-%d").to_string())
+        .fetch_all(&pool)
         .await?;
     for row in query {
         usage_log_data.push(
@@ -80,7 +102,13 @@ async fn get_usage_log_data(pool_state: State<'_, Arc<Pool<Sqlite>>>, date: Stri
             }
         )
     }
-    Ok(usage_log_data)
+    log::info!("Log Date: {:?}", usage_log_data);
+    return Ok(usage_log_data)
+}
+
+#[command]
+fn is_sqlite_connected(sqlite_connection: State<'_, SqlitePoolConnection>) -> bool {
+    return sqlite_connection.connection.lock().unwrap().is_some();
 }
 
 // Application Window SQL Operations
@@ -341,5 +369,6 @@ pub async fn initialize_sqlite_database() -> Result<Pool<Sqlite>, SqlxError>{
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("sqlite_connector")
+        .invoke_handler(tauri::generate_handler![is_sqlite_connected, get_usage_log_data])
         .build()
 }

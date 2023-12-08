@@ -3,6 +3,7 @@
 
 use tauri::{
   Manager,
+  State,
 };
 
 mod services;
@@ -14,9 +15,9 @@ use crate::services::user::get_user_name;
 
 use sqlx::{Pool, Sqlite};
 
-use std::sync::Arc;
+use std::sync::Mutex;
 
-struct SqlitePoolConnection(Pool<Sqlite>);
+struct SqlitePoolConnection{connection: Mutex<Option<Pool<Sqlite>>>}
 
 fn setup_logging() -> Result<(), fern::InitError> {
   fern::Dispatch::new()
@@ -31,7 +32,7 @@ fn setup_logging() -> Result<(), fern::InitError> {
     })
     .chain(std::io::stdout())
     .chain(fern::log_file("output.log")?)
-    .level(log::LevelFilter::Error)
+    .level(log::LevelFilter::Info)
     .apply()?;
   Ok(())
 }
@@ -42,6 +43,7 @@ fn main() {
   }
   log::info!("Logging");
   tauri::Builder::default()
+    .manage(SqlitePoolConnection{connection: Mutex::new(None)})
     .plugin(services::user::init())
     .plugin(database::sqlite_connector::init())
     .plugin(services::windows::init())
@@ -51,7 +53,8 @@ fn main() {
             match initialize_sqlite_database().await {
                 Ok(pool) => {
                     log::info!("Database initalized");
-                    app_handle.manage(Arc::new(pool.clone()));
+                    let pool_state: State<'_, SqlitePoolConnection> = app_handle.state();
+                    *pool_state.connection.lock().unwrap() = Some(pool.clone());
                     match get_user_name() {
                         Ok(user_name) => {
                           let user_string = user_name.unwrap();
@@ -59,23 +62,23 @@ fn main() {
                             Ok(user_exist) => {
                               if !user_exist {
                                 if let Err(err) = create_user(&pool, &user_string).await {
-                                  log::error!("Error creating user. Error code: {}", err);
+                                  log::error!("Error creating user. Error {}", err);
                                 }
                               }
                               start_tacker(pool.clone(), user_string).await;
                             }
                             Err(err) => {
-                              log::error!("Database error. Error code: {}", err)
+                              log::error!("Database error. Error {}", err)
                             }
                           }
                         }  
                         Err(err) => {
-                            log::error!("Unable to get user. Error: {}", err.unwrap_or_else(|| 1))
+                            log::error!("Unable to get user. Error {}", err.unwrap_or_else(|| 1))
                         }
                     }
                 }
                 Err(err) => {
-                    log::error!("Failed to initalize database. Error: {}", err);
+                    log::error!("Failed to initalize database. Error {}", err);
                     app_handle.exit(1);
                 }
             }
