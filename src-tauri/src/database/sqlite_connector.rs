@@ -33,7 +33,7 @@ impl Serialize for SerializedError {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct UsageLogData {
     log_id: i64,
     window_name: String,
@@ -77,7 +77,7 @@ pub struct User {
 
 // TODO Add date parameter
 #[command]
-async fn get_usage_log_data(pool_state: State<'_, SqlitePoolConnection>) -> Result<Vec<UsageLogData>, SerializedError>{
+async fn get_usage_log_data(pool_state: State<'_, SqlitePoolConnection>, date: String) -> Result<Vec<UsageLogData>, SerializedError>{
     let pool = pool_state.connection.lock().unwrap().clone().unwrap();
     let mut usage_log_data: Vec<UsageLogData> = Vec::new();
     let query = sqlx::query(
@@ -89,7 +89,8 @@ async fn get_usage_log_data(pool_state: State<'_, SqlitePoolConnection>) -> Resu
         WHERE ul.Date = ?
         "
     )
-        .bind(Local::now().format("%Y-%m-%d").to_string())
+        // .bind(Local::now().format("%Y-%m-%d").to_string())
+        .bind(date)
         .fetch_all(&pool)
         .await?;
     for row in query {
@@ -102,7 +103,7 @@ async fn get_usage_log_data(pool_state: State<'_, SqlitePoolConnection>) -> Resu
             }
         )
     }
-    log::info!("Log Date: {:?}", usage_log_data);
+    // log::info!("Log Date: {:?}", usage_log_data);
     return Ok(usage_log_data)
 }
 

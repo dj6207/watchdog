@@ -1,6 +1,7 @@
 import React from "react";
 import { invoke } from '@tauri-apps/api/tauri'
 import { PieChart, Pie, Tooltip, Legend } from 'recharts';
+import { UsageLogData } from "../types";
 
 export const Home: React.FC = () => {
 
@@ -17,9 +18,20 @@ export const Home: React.FC = () => {
     }
 
     // Add date parameter
-    const getUsageLogData =async () => {
-      const data = await invoke("plugin:sqlite_connector|get_usage_log_data");
-      console.log(data)
+    const getUsageLogData = async ():Promise<UsageLogData[]> => {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = (today.getMonth() + 1).toString().padStart(2, '0');
+      const day = today.getDate().toString().padStart(2, '0')
+      const date = `${year}-${month}-${day}`;
+      const data = await invoke<any[]>("plugin:sqlite_connector|get_usage_log_data", { date: date });
+      const mappedData:UsageLogData[] = data.map(log => ({
+        logId: log.log_id,
+        windowName: log.window_name,
+        executableName: log.executable_name,
+        timeSpent: log.time_spent,
+      }));
+      return mappedData;
     }
 
     return (
