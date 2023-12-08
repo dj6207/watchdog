@@ -12,6 +12,11 @@ use crate::database::sqlite_connector::{initialize_sqlite_database, create_user,
 use crate::services::windows::start_tacker;
 use crate::services::user::get_user_name;
 
+use sqlx::{Pool, Sqlite};
+
+use std::sync::Arc;
+
+struct SqlitePoolConnection(Pool<Sqlite>);
 
 fn setup_logging() -> Result<(), fern::InitError> {
   fern::Dispatch::new()
@@ -26,7 +31,7 @@ fn setup_logging() -> Result<(), fern::InitError> {
     })
     .chain(std::io::stdout())
     .chain(fern::log_file("output.log")?)
-    .level(log::LevelFilter::Info)
+    .level(log::LevelFilter::Error)
     .apply()?;
   Ok(())
 }
@@ -41,40 +46,41 @@ fn main() {
     .plugin(database::sqlite_connector::init())
     .plugin(services::windows::init())
     .setup(|app_handler| {
-      let app_handle = app_handler.app_handle();
-      tauri::async_runtime::spawn(async move {
-          match initialize_sqlite_database().await {
-              Ok(pool) => {
-                  log::info!("Database initalized");
-                  match get_user_name() {
-                      Ok(user_name) => {
-                        let user_string = user_name.unwrap();
-                        match user_name_exists(&pool, &user_string).await {
-                          Ok(user_exist) => {
-                            if !user_exist {
-                              if let Err(err) = create_user(&pool, &user_string).await {
-                                log::error!("Error creating user. Error code: {}", err);
+        let app_handle = app_handler.app_handle();
+        tauri::async_runtime::spawn(async move {
+            match initialize_sqlite_database().await {
+                Ok(pool) => {
+                    log::info!("Database initalized");
+                    app_handle.manage(Arc::new(pool.clone()));
+                    match get_user_name() {
+                        Ok(user_name) => {
+                          let user_string = user_name.unwrap();
+                          match user_name_exists(&pool, &user_string).await {
+                            Ok(user_exist) => {
+                              if !user_exist {
+                                if let Err(err) = create_user(&pool, &user_string).await {
+                                  log::error!("Error creating user. Error code: {}", err);
+                                }
                               }
+                              start_tacker(pool.clone(), user_string).await;
                             }
-                            start_tacker(pool.clone(), user_string).await;
+                            Err(err) => {
+                              log::error!("Database error. Error code: {}", err)
+                            }
                           }
-                          Err(err) => {
-                            log::error!("Database error. Error code: {}", err)
-                          }
+                        }  
+                        Err(err) => {
+                            log::error!("Unable to get user. Error: {}", err.unwrap_or_else(|| 1))
                         }
-                      }  
-                      Err(err) => {
-                          log::error!("Unable to get user. Error: {}", err.unwrap_or_else(|| 1))
-                      }
-                  }
-              }
-              Err(err) => {
-                  log::error!("Failed to initalize database. Error: {}", err);
-                  app_handle.exit(1);
-              }
-          }
-      });
-      Ok(())
+                    }
+                }
+                Err(err) => {
+                    log::error!("Failed to initalize database. Error: {}", err);
+                    app_handle.exit(1);
+                }
+            }
+        });
+        Ok(())
     })
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
