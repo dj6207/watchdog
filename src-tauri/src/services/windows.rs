@@ -41,7 +41,7 @@ use crate::database::sqlite_connector::{
     update_usage_logs_time,
 };
 
-const MONITOR_INTERVAL:u64 = 5;
+const MONITOR_INTERVAL:u64 = 1;
 
 fn get_process_handle(process_id: u32) -> Result<*mut c_void, Option<u32>> {
     unsafe {
