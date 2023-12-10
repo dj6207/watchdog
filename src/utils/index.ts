@@ -1,4 +1,4 @@
-import { UsageLogData } from "../types";
+import { ApplicationUsageData, UsageLogData } from "../types";
 
 export const formatDate = (date:Date):string => {
     const year = date.getFullYear();
@@ -38,6 +38,11 @@ export const filterUsageLogData = (usageLogDataList:UsageLogData[]):UsageLogData
     // ... creates a shallow copy since .sort will mutate the list
     // filters list based on  timeSpent
     const filteredList = [...usageLogDataList].sort((a, b) => b.timeSpent - a.timeSpent);
+    return filteredList.slice(0, 10);
+}
+
+export const filterApplicationUsageData = (applicationUsageDataList:ApplicationUsageData[]):ApplicationUsageData[] => {
+    const filteredList = [...applicationUsageDataList].sort((a, b) => b.totalTimeSpent - a.totalTimeSpent);
     return filteredList.slice(0, 10);
 }
 

@@ -12,10 +12,10 @@
 
 .nav-item a {
     text-decoration: none;
-    color: #FFEE;
+    color: #FFFF;
     font-weight: bold;
 }
 
 .nav-item a:hover {
-    color: #FFFF;
+    color: #FFEE;
 }

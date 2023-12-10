@@ -5,6 +5,12 @@ export type UsageLogData = {
     timeSpent: number;
 }
 
+export type ApplicationUsageData = {
+    applicationId: number;
+    executableName: string;
+    totalTimeSpent: number;
+}
+
 export type RouteItem = {
     path: string;
     label: string;
@@ -12,4 +18,8 @@ export type RouteItem = {
 
 export type NavBarProps = {
     userRoutes: RouteItem[];
+}
+
+export interface UserState {
+    userName: string;
 }

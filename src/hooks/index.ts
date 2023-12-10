@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { UsageLogData } from "../types";
+import { ApplicationUsageData, UsageLogData } from "../types";
 import { invoke } from '@tauri-apps/api/tauri'
 
 export const useCheckDataBaseConnected = ():boolean => {
@@ -17,11 +17,11 @@ export const useGetUsageLogData = (date:string):UsageLogData[] => {
     const [usageLogData, setUsageLogData] = useState<UsageLogData[]>([]);
     useEffect(() => {
         invoke<any[]>("plugin:sqlite_connector|get_usage_log_data", { date: date }).then((data) => {
-            const usageLogDataObject = data.map(log => ({
-              logId: log.log_id,
-              windowName: log.window_name,
-              executableName: log.executable_name,
-              timeSpent: log.time_spent,
+            const usageLogDataObject = data.map(obj => ({
+              logId: obj.log_id,
+              windowName: obj.window_name,
+              executableName: obj.executable_name,
+              timeSpent: obj.time_spent,
             }));
             setUsageLogData(usageLogDataObject);
         });
@@ -29,16 +29,31 @@ export const useGetUsageLogData = (date:string):UsageLogData[] => {
     return usageLogData;
 }
 
-export const useUpdateUsageLogData = (date:string) => {
+export const useGetApplicationUsageData = ():ApplicationUsageData[] => {
+    const [applicationUsageData, setApplicationUsageData] = useState<ApplicationUsageData[]>([]);
+    useEffect(() => {
+        invoke<any[]>("plugin:sqlite_connector|get_application_usage_data").then((data) => {
+            const applicationUsageDataObject = data.map(obj => ({
+                applicationId: obj.application_id,
+                executableName: obj.executable_name,
+                totalTimeSpent: obj.total_time_spent,
+            }));
+            setApplicationUsageData(applicationUsageDataObject);
+        });
+    }, []);
+    return applicationUsageData
+}
+
+export const useUpdateUsageLogData = (date:string):UsageLogData[] => {
     const [usageLogData, setUsageLogData] = useState<UsageLogData[]>([]);
     useEffect(() => {
         const getUsageLogData = () => {
             invoke<any[]>("plugin:sqlite_connector|get_usage_log_data", { date: date }).then((data) => {
-                const usageLogDataObject = data.map(log => ({
-                  logId: log.log_id,
-                  windowName: log.window_name,
-                  executableName: log.executable_name,
-                  timeSpent: log.time_spent,
+                const usageLogDataObject = data.map(obj => ({
+                  logId: obj.log_id,
+                  windowName: obj.window_name,
+                  executableName: obj.executable_name,
+                  timeSpent: obj.time_spent,
                 }));
                 setUsageLogData(usageLogDataObject);
             });
@@ -48,4 +63,24 @@ export const useUpdateUsageLogData = (date:string) => {
         return () => clearInterval(interval);
     }, [date]);
     return usageLogData;
+}
+
+export const useUpdateApplicationUsageData = ():ApplicationUsageData[] => {
+    const [applicationUsageData, setApplicationUsageData] = useState<ApplicationUsageData[]>([]);
+    useEffect(() => {
+        const getApplicationUsageData = () => {
+            invoke<any[]>("plugin:sqlite_connector|get_application_usage_data").then((data) => {
+                const applicationUsageDataObject = data.map(obj => ({
+                    applicationId: obj.application_id,
+                    executableName: obj.executable_name,
+                    totalTimeSpent: obj.total_time_spent,
+                }));
+                setApplicationUsageData(applicationUsageDataObject);
+            });
+        }
+        getApplicationUsageData();
+        const interval = setInterval(getApplicationUsageData, 1000);
+        return () => clearInterval(interval);
+    }, []);
+    return applicationUsageData
 }

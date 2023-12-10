@@ -8,7 +8,6 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqliteRow};
 use sqlx::{Pool, Sqlite, Row, Error as SqlxError};
 
 use std::str::FromStr;
-use std::sync::Mutex;
 
 use serde::{Serialize, Deserialize};
 
@@ -31,6 +30,13 @@ impl Serialize for SerializedError {
     {
       serializer.serialize_str(self.to_string().as_ref())
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ApplicationUsageData {
+    application_id: i64,
+    executable_name: String,
+    total_time_spent: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -69,17 +75,9 @@ pub struct User {
     pub user_name: String,
 }
 
-// SELECT ul.LogID, aw.WindowName, a.ExecutableName, ul.TimeSpent
-// FROM UsageLogs ul
-// INNER JOIN ApplicationWindows aw ON ul.WindowID = aw.WindowID
-// INNER JOIN Applications a ON aw.ApplicationID = a.ApplicationID
-// WHERE ul.Date = ?
-
-// TODO Add date parameter
 #[command]
 async fn get_usage_log_data(pool_state: State<'_, SqlitePoolConnection>, date: String) -> Result<Vec<UsageLogData>, SerializedError>{
     let pool = pool_state.connection.lock().unwrap().clone().unwrap();
-    let mut usage_log_data: Vec<UsageLogData> = Vec::new();
     let query = sqlx::query(
         "
         SELECT ul.LogID, aw.WindowName, a.ExecutableName, ul.TimeSpent
@@ -89,22 +87,45 @@ async fn get_usage_log_data(pool_state: State<'_, SqlitePoolConnection>, date: S
         WHERE ul.Date = ?
         "
     )
-        // .bind(Local::now().format("%Y-%m-%d").to_string())
         .bind(date)
         .fetch_all(&pool)
         .await?;
-    for row in query {
-        usage_log_data.push(
-            UsageLogData {
-                log_id: row.get(0),
-                window_name: row.get(1),
-                executable_name: row.get(2),
-                time_spent: row.get(3),
-            }
-        )
-    }
-    // log::info!("Log Date: {:?}", usage_log_data);
+    let usage_log_data: Vec<UsageLogData> = query.into_iter().map(|row| {
+        UsageLogData {
+            log_id: row.get(0),
+            window_name: row.get(1),
+            executable_name: row.get(2),
+            time_spent: row.get(3),
+        }
+    }).collect();
     return Ok(usage_log_data)
+}
+
+#[command]
+async fn get_application_usage_data(pool_state: State<'_, SqlitePoolConnection>) -> Result<Vec<ApplicationUsageData>, SerializedError>{
+    let pool = pool_state.connection.lock().unwrap().clone().unwrap();
+    let query =  sqlx::query(
+        "
+        SELECT 
+            a.ApplicationID as application_id, 
+            a.ExecutableName as executable_name, 
+            SUM(u.TimeSpent) as total_time_spent
+        FROM Applications a
+        INNER JOIN ApplicationWindows aw ON a.ApplicationID = aw.ApplicationID
+        INNER JOIN UsageLogs u ON aw.WindowID = u.WindowID
+        GROUP BY a.ApplicationID, a.ExecutableName
+        "
+    )
+        .fetch_all(&pool)
+        .await?;
+    let application_usage_data: Vec<ApplicationUsageData> = query.into_iter().map(|row| {
+        ApplicationUsageData { 
+            application_id: row.get(0), 
+            executable_name: row.get(1), 
+            total_time_spent: row.get(2),
+        }
+    }).collect();
+    Ok(application_usage_data)
 }
 
 #[command]
@@ -370,6 +391,6 @@ pub async fn initialize_sqlite_database() -> Result<Pool<Sqlite>, SqlxError>{
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("sqlite_connector")
-        .invoke_handler(tauri::generate_handler![is_sqlite_connected, get_usage_log_data])
+        .invoke_handler(tauri::generate_handler![is_sqlite_connected, get_usage_log_data, get_application_usage_data])
         .build()
 }
