@@ -27,7 +27,7 @@ export const UsagePieChart: React.FC = () => {
 
     const dataBaseConnection:boolean = useCheckDataBaseConnected();
     const usageLogData:UsageLogData[] = filterUsageLogData(useUpdateUsageLogData(date));
-    const applicationUsageData:ApplicationUsageData[] = filterApplicationUsageData(useUpdateApplicationUsageData());
+    const applicationUsageData:ApplicationUsageData[] = filterApplicationUsageData(useUpdateApplicationUsageData(date));
 
     // TODO: Create most used list
     // TODO: Create average time spent
@@ -38,44 +38,44 @@ export const UsagePieChart: React.FC = () => {
             <h3>Application Usage {date}</h3>
             {dataBaseConnection && 
                 <>
-                <button onClick={toggleNameKey}>Toggle Graph</button>
-                {useUsageLogData ? (
-                    <PieChart width={600} height={400}>
-                        <Pie
-                            dataKey="timeSpent"
-                            nameKey="windowName"
-                            isAnimationActive={false}
-                            data={usageLogData}
-                            fill="#8884d8"
-                            // label={({ name, percent }) => percent > 0.05 ? truncateString(name, 10) : truncateString(name, 0)}
-                            labelLine={false}
-                        >
-                            {usageLogData.map((_, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                        </Pie>
-                        <Tooltip content={<CustomTooltip/>} />
-                        <Legend formatter={(label) => truncateString(label, 20)}/>
-                    </PieChart>
-                ) : (
-                    <PieChart width={600} height={400}>
-                        <Pie
-                            dataKey="totalTimeSpent"
-                            nameKey="executableName"
-                            isAnimationActive={false}
-                            data={applicationUsageData}
-                            fill="#8884d8"
-                            // label={({ name, percent }) => percent > 0.05 ? truncateString(name, 10) : truncateString(name, 0)}
-                            labelLine={false}
-                        >
-                            {applicationUsageData.map((_, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                        </Pie>
-                        <Tooltip content={<CustomTooltip/>} />
-                        <Legend formatter={(label) => truncateString(label, 20)}/>
-                    </PieChart>
-                )}
+                    <button onClick={toggleNameKey}>Toggle Graph</button>
+                    {useUsageLogData ? (
+                        <PieChart width={600} height={400}>
+                            <Pie
+                                dataKey="timeSpent"
+                                nameKey="windowName"
+                                isAnimationActive={false}
+                                data={usageLogData}
+                                fill="#8884d8"
+                                // label={({ name, percent }) => percent > 0.05 ? truncateString(name, 10) : truncateString(name, 0)}
+                                labelLine={false}
+                            >
+                                {usageLogData.map((_, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                            </Pie>
+                            <Tooltip content={<CustomTooltip/>} />
+                            <Legend formatter={(label) => truncateString(label, 20)}/>
+                        </PieChart>
+                    ) : (
+                        <PieChart width={600} height={400}>
+                            <Pie
+                                dataKey="totalTimeSpent"
+                                nameKey="executableName"
+                                isAnimationActive={false}
+                                data={applicationUsageData}
+                                fill="#8884d8"
+                                // label={({ name, percent }) => percent > 0.05 ? truncateString(name, 10) : truncateString(name, 0)}
+                                labelLine={false}
+                            >
+                                {applicationUsageData.map((_, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                            </Pie>
+                            <Tooltip content={<CustomTooltip/>} />
+                            <Legend formatter={(label) => truncateString(label, 20)}/>
+                        </PieChart>
+                    )}
                 </>
             }
         </>

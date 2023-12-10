@@ -29,10 +29,10 @@ export const useGetUsageLogData = (date:string):UsageLogData[] => {
     return usageLogData;
 }
 
-export const useGetApplicationUsageData = ():ApplicationUsageData[] => {
+export const useGetApplicationUsageData = (date:string):ApplicationUsageData[] => {
     const [applicationUsageData, setApplicationUsageData] = useState<ApplicationUsageData[]>([]);
     useEffect(() => {
-        invoke<any[]>("plugin:sqlite_connector|get_application_usage_data").then((data) => {
+        invoke<any[]>("plugin:sqlite_connector|get_application_usage_data", { date: date }).then((data) => {
             const applicationUsageDataObject = data.map(obj => ({
                 applicationId: obj.application_id,
                 executableName: obj.executable_name,
@@ -40,7 +40,7 @@ export const useGetApplicationUsageData = ():ApplicationUsageData[] => {
             }));
             setApplicationUsageData(applicationUsageDataObject);
         });
-    }, []);
+    }, [date]);
     return applicationUsageData
 }
 
@@ -61,15 +61,15 @@ export const useUpdateUsageLogData = (date:string):UsageLogData[] => {
         getUsageLogData();
         const interval = setInterval(getUsageLogData, 1000);
         return () => clearInterval(interval);
-    }, [date]);
+    }, []);
     return usageLogData;
 }
 
-export const useUpdateApplicationUsageData = ():ApplicationUsageData[] => {
+export const useUpdateApplicationUsageData = (date:string):ApplicationUsageData[] => {
     const [applicationUsageData, setApplicationUsageData] = useState<ApplicationUsageData[]>([]);
     useEffect(() => {
         const getApplicationUsageData = () => {
-            invoke<any[]>("plugin:sqlite_connector|get_application_usage_data").then((data) => {
+            invoke<any[]>("plugin:sqlite_connector|get_application_usage_data", { date: date }).then((data) => {
                 const applicationUsageDataObject = data.map(obj => ({
                     applicationId: obj.application_id,
                     executableName: obj.executable_name,

@@ -101,18 +101,58 @@ async fn get_usage_log_data(pool_state: State<'_, SqlitePoolConnection>, date: S
     return Ok(usage_log_data)
 }
 
+// SELECT 
+// a.ApplicationID as application_id, 
+// a.ExecutableName as executable_name, 
+// SUM(ul.TimeSpent) as total_time_spent
+// FROM Applications a
+// INNER JOIN ApplicationWindows aw ON a.ApplicationID = aw.ApplicationID
+// INNER JOIN UsageLogs ul ON aw.WindowID = ul.WindowID
+// WHERE ul.Date = ?
+// GROUP BY a.ApplicationID, a.ExecutableName
+
+// TODO: Change this to select by date and not all
 #[command]
-async fn get_application_usage_data(pool_state: State<'_, SqlitePoolConnection>) -> Result<Vec<ApplicationUsageData>, SerializedError>{
+async fn get_application_usage_data(pool_state: State<'_, SqlitePoolConnection>, date: String) -> Result<Vec<ApplicationUsageData>, SerializedError>{
     let pool = pool_state.connection.lock().unwrap().clone().unwrap();
     let query =  sqlx::query(
         "
         SELECT 
             a.ApplicationID as application_id, 
             a.ExecutableName as executable_name, 
-            SUM(u.TimeSpent) as total_time_spent
+            SUM(ul.TimeSpent) as total_time_spent
         FROM Applications a
         INNER JOIN ApplicationWindows aw ON a.ApplicationID = aw.ApplicationID
-        INNER JOIN UsageLogs u ON aw.WindowID = u.WindowID
+        INNER JOIN UsageLogs ul ON aw.WindowID = ul.WindowID
+        WHERE ul.Date = ?
+        GROUP BY a.ApplicationID, a.ExecutableName
+        "
+    )
+        .bind(date)
+        .fetch_all(&pool)
+        .await?;
+    let application_usage_data: Vec<ApplicationUsageData> = query.into_iter().map(|row| {
+        ApplicationUsageData { 
+            application_id: row.get(0), 
+            executable_name: row.get(1), 
+            total_time_spent: row.get(2),
+        }
+    }).collect();
+    Ok(application_usage_data)
+}
+
+#[command]
+async fn get_all_application_usage_data(pool_state: State<'_, SqlitePoolConnection>) -> Result<Vec<ApplicationUsageData>, SerializedError>{
+    let pool = pool_state.connection.lock().unwrap().clone().unwrap();
+    let query =  sqlx::query(
+        "
+        SELECT 
+            a.ApplicationID as application_id, 
+            a.ExecutableName as executable_name, 
+            SUM(ul.TimeSpent) as total_time_spent
+        FROM Applications a
+        INNER JOIN ApplicationWindows aw ON a.ApplicationID = aw.ApplicationID
+        INNER JOIN UsageLogs ul ON aw.WindowID = ul.WindowID
         GROUP BY a.ApplicationID, a.ExecutableName
         "
     )
@@ -391,6 +431,11 @@ pub async fn initialize_sqlite_database() -> Result<Pool<Sqlite>, SqlxError>{
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("sqlite_connector")
-        .invoke_handler(tauri::generate_handler![is_sqlite_connected, get_usage_log_data, get_application_usage_data])
+        .invoke_handler(tauri::generate_handler![
+            is_sqlite_connected, 
+            get_usage_log_data,
+            get_all_application_usage_data,
+            get_application_usage_data,
+        ])
         .build()
 }
