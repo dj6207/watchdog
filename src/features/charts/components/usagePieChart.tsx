@@ -96,7 +96,7 @@ export const UsagePieChart: React.FC = () => {
                             <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
                         ))}
                     </Pie>
-                    <Tooltip content={<CustomTooltip />} />
+                    <Tooltip content={<CustomTooltip/>} />
                     <Legend formatter={(label) => truncateString(label, 20)}/>
                 </PieChart>
             </>

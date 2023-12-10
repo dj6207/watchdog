@@ -12,9 +12,12 @@
   "dependencies": {
     "@reduxjs/toolkit": "^2.0.1",
     "@tauri-apps/api": "^1.5.1",
+    "@types/react-datepicker": "^4.19.3",
     "react": "^18.2.0",
+    "react-datepicker": "^4.24.0",
     "react-dom": "^18.2.0",
     "react-redux": "^9.0.1",
+    "react-router-dom": "^6.20.1",
     "recharts": "^2.10.3",
     "tauri-plugin-log-api": "github:tauri-apps/tauri-plugin-log#v1",
     "tauri-plugin-sql-api": "github:tauri-apps/tauri-plugin-sql#v1"
