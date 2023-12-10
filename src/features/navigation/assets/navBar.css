@@ -1,0 +1,21 @@
+.navbar {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: left;
+}
+
+.nav-item {
+    margin-right: 20px;
+}
+
+.nav-item a {
+    text-decoration: none;
+    color: #FFEE;
+    font-weight: bold;
+}
+
+.nav-item a:hover {
+    color: #FFFF;
+}
