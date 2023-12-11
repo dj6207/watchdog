@@ -5,7 +5,7 @@ use tauri::{
 };
 
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqliteRow};
-use sqlx::{Pool, Sqlite, Row, Error as SqlxError};
+use sqlx::{Pool, Sqlite, Row, FromRow, Error as SqlxError};
 
 use std::str::FromStr;
 
@@ -32,14 +32,14 @@ impl Serialize for SerializedError {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 struct ApplicationUsageData {
     application_id: i64,
     executable_name: String,
     total_time_spent: i64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 struct UsageLogData {
     log_id: i64,
     window_name: String,
@@ -47,7 +47,12 @@ struct UsageLogData {
     time_spent: i64,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, FromRow, Serialize)]
+struct TotalUsageTime {
+    total_usage_time: i64,
+}
+
+#[derive(Debug, FromRow)]
 pub struct UsageLog {
     pub log_id: i64,
     pub user_id: i64,
@@ -56,23 +61,42 @@ pub struct UsageLog {
     pub time_spent: i64,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, FromRow)]
 pub struct ApplicationWindow {
     pub window_id: i64,
     pub application_id: i64,
     pub window_name: String,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, FromRow)]
 pub struct Application {
     pub application_id: i64,
     pub executable_name: String,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, FromRow)]
 pub struct User {
     pub user_id: i64,
     pub user_name: String,
+}
+
+// SELECT SUM(ul.TimeSpent) as total_time_spent
+// FROM UsageLogs ul
+// WHERE ul.Date = ?
+#[command]
+async fn get_total_usage_log_time(pool_state: State<'_, SqlitePoolConnection>, date: String) -> Result<TotalUsageTime, SerializedError>{
+    let pool = pool_state.connection.lock().unwrap().clone().unwrap();
+    let query = sqlx::query_as::<_, TotalUsageTime>(
+        "
+        SELECT SUM(ul.TimeSpent) as total_usage_time
+        FROM UsageLogs ul
+        WHERE ul.Date = ?
+        "
+    )
+        .bind(date)
+        .fetch_one(&pool)
+        .await?;
+    return Ok(query)
 }
 
 #[command]
@@ -111,7 +135,6 @@ async fn get_usage_log_data(pool_state: State<'_, SqlitePoolConnection>, date: S
 // WHERE ul.Date = ?
 // GROUP BY a.ApplicationID, a.ExecutableName
 
-// TODO: Change this to select by date and not all
 #[command]
 async fn get_application_usage_data(pool_state: State<'_, SqlitePoolConnection>, date: String) -> Result<Vec<ApplicationUsageData>, SerializedError>{
     let pool = pool_state.connection.lock().unwrap().clone().unwrap();
@@ -436,6 +459,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             get_usage_log_data,
             get_all_application_usage_data,
             get_application_usage_data,
+            get_total_usage_log_time,
         ])
         .build()
 }

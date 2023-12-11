@@ -11,6 +11,23 @@ export type ApplicationUsageData = {
     totalTimeSpent: number;
 }
 
+export type RustTotalUsageLogTime = {
+    total_usage_time: number;
+}
+
+export type RustUsageLogData = {
+    log_id: number,
+    window_name: string,
+    executable_name: string,
+    time_spent: number,
+}
+
+export type RustApplicationUsageData = {
+    application_id: number,
+    executable_name: string,
+    total_time_spent: number,
+}
+
 export type RouteItem = {
     path: string;
     label: string;
@@ -18,6 +35,10 @@ export type RouteItem = {
 
 export type NavBarProps = {
     userRoutes: RouteItem[];
+}
+
+export type UsageStatisticsProps = {
+    realTime: boolean;
 }
 
 export interface UserState {

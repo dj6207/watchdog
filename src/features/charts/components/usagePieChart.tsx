@@ -5,6 +5,7 @@ import { formatDate, filterUsageLogData, formatTime, truncateString, filterAppli
 import { COLORS } from "../../../constants";
 import '../assets/UsagePieChart.css'
 import { UsageLogData, ApplicationUsageData } from "../../../types";
+import { UsageStatistics } from "../../statistics";
 
 export const UsagePieChart: React.FC = () => {
     const [useUsageLogData, setUseUsageLogData] = useState(true);
@@ -31,14 +32,15 @@ export const UsagePieChart: React.FC = () => {
 
     // TODO: Create most used list
     // TODO: Create average time spent
+    // TODO: Create statistic tab
 
     // Label key error bruh
     return (
         <>
-            <h3>Application Usage {date}</h3>
             {dataBaseConnection && 
                 <>
                     <button onClick={toggleNameKey}>Toggle Graph</button>
+                    <UsageStatistics realTime={true}/>
                     {useUsageLogData ? (
                         <PieChart width={600} height={400}>
                             <Pie
