@@ -1,8 +1,8 @@
 import React from "react";
 import { UsagePieChart } from "../features/charts";
 
-export const Home: React.FC = () => {
+export const History: React.FC = () => {
     return (
-      <UsagePieChart realTime={true} />
+      <UsagePieChart realTime={false} />
     );
 }

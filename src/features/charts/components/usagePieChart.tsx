@@ -1,18 +1,26 @@
 import React, {useState} from "react";
-import { useCheckDataBaseConnected, useUpdateUsageLogData, useUpdateApplicationUsageData } from '../../../hooks';
+import { useCheckDataBaseConnected, useUpdateUsageLogData, useUpdateApplicationUsageData, useGetUsageLogData, useGetApplicationUsageData } from '../../../hooks';
 import { PieChart, Pie, Tooltip, TooltipProps , Cell, Legend } from 'recharts';
 import { formatDate, filterUsageLogData, formatTime, truncateString, filterApplicationUsageData } from "../../../utils";
 import { COLORS } from "../../../constants";
 import '../assets/UsagePieChart.css'
-import { UsageLogData, ApplicationUsageData } from "../../../types";
+import { UsageLogData, ApplicationUsageData, PieChartProps } from "../../../types";
 import { UsageStatistics } from "../../statistics";
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
 
-export const UsagePieChart: React.FC = () => {
+export const UsagePieChart: React.FC<PieChartProps> = ({ realTime }: PieChartProps) => {
     const [useUsageLogData, setUseUsageLogData] = useState(true);
-    const toggleNameKey = () => setUseUsageLogData(!useUsageLogData);
-
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+    
     const today:Date = new Date();
     const date:string = formatDate(today);
+
+    const toggleNameKey = () => setUseUsageLogData(!useUsageLogData);
+
+    const handleDateChange = (date: Date) => {
+        setSelectedDate(date);
+    };
 
     const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
         if (active && payload && payload.length) {
@@ -27,12 +35,13 @@ export const UsagePieChart: React.FC = () => {
     };
 
     const dataBaseConnection:boolean = useCheckDataBaseConnected();
-    const usageLogData:UsageLogData[] = filterUsageLogData(useUpdateUsageLogData(date));
-    const applicationUsageData:ApplicationUsageData[] = filterApplicationUsageData(useUpdateApplicationUsageData(date));
+    const usageLogData:UsageLogData[] = realTime ? filterUsageLogData(useUpdateUsageLogData(date)) : filterUsageLogData(useGetUsageLogData(formatDate(selectedDate)));
+    const applicationUsageData:ApplicationUsageData[] = realTime ? filterApplicationUsageData(useUpdateApplicationUsageData(date)) : filterApplicationUsageData(useGetApplicationUsageData(formatDate(selectedDate)));
 
     // TODO: Create most used list
     // TODO: Create average time spent
     // TODO: Create statistic tab
+    // TODO: Categorize tabs
 
     // Label key error bruh
     return (
@@ -40,44 +49,25 @@ export const UsagePieChart: React.FC = () => {
             {dataBaseConnection && 
                 <>
                     <button onClick={toggleNameKey}>Toggle Graph</button>
-                    <UsageStatistics realTime={true}/>
-                    {useUsageLogData ? (
-                        <PieChart width={600} height={400}>
-                            <Pie
-                                dataKey="timeSpent"
-                                nameKey="windowName"
-                                isAnimationActive={false}
-                                data={usageLogData}
-                                fill="#8884d8"
-                                // label={({ name, percent }) => percent > 0.05 ? truncateString(name, 10) : truncateString(name, 0)}
-                                labelLine={false}
-                            >
-                                {usageLogData.map((_, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                            </Pie>
-                            <Tooltip content={<CustomTooltip/>} />
-                            <Legend formatter={(label) => truncateString(label, 20)}/>
-                        </PieChart>
-                    ) : (
-                        <PieChart width={600} height={400}>
-                            <Pie
-                                dataKey="totalTimeSpent"
-                                nameKey="executableName"
-                                isAnimationActive={false}
-                                data={applicationUsageData}
-                                fill="#8884d8"
-                                // label={({ name, percent }) => percent > 0.05 ? truncateString(name, 10) : truncateString(name, 0)}
-                                labelLine={false}
-                            >
-                                {applicationUsageData.map((_, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                            </Pie>
-                            <Tooltip content={<CustomTooltip/>} />
-                            <Legend formatter={(label) => truncateString(label, 20)}/>
-                        </PieChart>
+                    <UsageStatistics realTime={realTime}/>
+                    {!realTime && (
+                        <DatePicker className="calender" selected={selectedDate} onChange={handleDateChange} />
                     )}
+                    <PieChart width={600} height={400}>
+                        <Pie
+                            dataKey={useUsageLogData ? "timeSpent" : "totalTimeSpent"}
+                            nameKey={useUsageLogData ? "windowName" : "executableName"}
+                            isAnimationActive={false}
+                            data={useUsageLogData ? usageLogData : applicationUsageData}
+                            fill="#8884d8"
+                            labelLine={false}
+                        >
+                            {(useUsageLogData ? usageLogData : applicationUsageData).map((_, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
+                        </Pie>
+                        <Tooltip content={<CustomTooltip/>} />
+                        <Legend formatter={(label) => truncateString(label, 20)}/>
+                    </PieChart>
                 </>
             }
         </>

@@ -41,6 +41,10 @@ export type UsageStatisticsProps = {
     realTime: boolean;
 }
 
+export type PieChartProps = {
+    realTime: boolean;
+}
+
 export interface UserState {
     userName: string;
 }

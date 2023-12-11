@@ -1,7 +1,7 @@
-import { Home } from './pages';
+import { Home, History } from './pages';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './assets/App.css';
-import { NavBar, UsageHistory } from './features/';
+import { NavBar } from './features/';
 import { RouteItem } from './types';
 
 function App() {
@@ -17,7 +17,7 @@ function App() {
         <Routes>
           <Route path='/' element={<Navigate to="/home" />}/>
           <Route path='/home' Component={Home}/>
-          <Route path='/history' Component={UsageHistory}/>
+          <Route path='/history' Component={History}/>
         </Routes>
       </BrowserRouter>
     </>
