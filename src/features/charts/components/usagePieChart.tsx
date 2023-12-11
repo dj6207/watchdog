@@ -13,8 +13,7 @@ export const UsagePieChart: React.FC<PieChartProps> = ({ realTime }: PieChartPro
     const [useUsageLogData, setUseUsageLogData] = useState(true);
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     
-    const today:Date = new Date();
-    const date:string = formatDate(today);
+    const date:string = formatDate(new Date());
 
     const toggleNameKey = () => setUseUsageLogData(!useUsageLogData);
 
@@ -42,6 +41,8 @@ export const UsagePieChart: React.FC<PieChartProps> = ({ realTime }: PieChartPro
     // TODO: Create average time spent
     // TODO: Create statistic tab
     // TODO: Categorize tabs
+    // TODO: Create Week report
+    // TODO: Create User Page
 
     // Label key error bruh
     return (

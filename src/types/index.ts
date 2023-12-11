@@ -28,6 +28,11 @@ export type RustApplicationUsageData = {
     total_time_spent: number,
 }
 
+export type RustUser = {
+    user_id: number,
+    user_name: string,
+}
+
 export type RouteItem = {
     path: string;
     label: string;

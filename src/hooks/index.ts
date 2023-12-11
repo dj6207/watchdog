@@ -2,6 +2,10 @@ import { useState, useEffect } from "react";
 import { ApplicationUsageData, UsageLogData, RustTotalUsageLogTime, RustUsageLogData, RustApplicationUsageData } from "../types";
 import { invoke } from '@tauri-apps/api/tauri'
 
+export const useGetUser = () => {
+    
+}
+
 export const useCheckDataBaseConnected = ():boolean => {
     const [datebaseConnected, setDatebaseConnected] = useState<boolean>(false);
     try {

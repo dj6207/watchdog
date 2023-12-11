@@ -1,15 +1,15 @@
 use tauri::{
     command,
     plugin::{Builder, TauriPlugin},
-    Manager, Runtime, State
+    Runtime, State
 };
 
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqliteRow};
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePool};
 use sqlx::{Pool, Sqlite, Row, FromRow, Error as SqlxError};
 
 use std::str::FromStr;
 
-use serde::{Serialize, Deserialize};
+use serde::Serialize;
 
 use chrono::Local;
 
@@ -17,6 +17,7 @@ use crate::SqlitePoolConnection;
 
 const DATABASE_URL:&str = "sqlite:watchdog.db";
 
+// Move enum somewhere else
 #[derive(Debug, thiserror::Error)]
 enum SerializedError {
     #[error(transparent)]
@@ -74,15 +75,12 @@ pub struct Application {
     pub executable_name: String,
 }
 
-#[derive(Debug, FromRow)]
+#[derive(Debug, FromRow, Serialize)]
 pub struct User {
     pub user_id: i64,
     pub user_name: String,
 }
 
-// SELECT SUM(ul.TimeSpent) as total_time_spent
-// FROM UsageLogs ul
-// WHERE ul.Date = ?
 #[command]
 async fn get_total_usage_log_time(pool_state: State<'_, SqlitePoolConnection>, date: String) -> Result<TotalUsageTime, SerializedError>{
     let pool = pool_state.connection.lock().unwrap().clone().unwrap();
@@ -124,16 +122,6 @@ async fn get_usage_log_data(pool_state: State<'_, SqlitePoolConnection>, date: S
     }).collect();
     return Ok(usage_log_data)
 }
-
-// SELECT 
-// a.ApplicationID as application_id, 
-// a.ExecutableName as executable_name, 
-// SUM(ul.TimeSpent) as total_time_spent
-// FROM Applications a
-// INNER JOIN ApplicationWindows aw ON a.ApplicationID = aw.ApplicationID
-// INNER JOIN UsageLogs ul ON aw.WindowID = ul.WindowID
-// WHERE ul.Date = ?
-// GROUP BY a.ApplicationID, a.ExecutableName
 
 #[command]
 async fn get_application_usage_data(pool_state: State<'_, SqlitePoolConnection>, date: String) -> Result<Vec<ApplicationUsageData>, SerializedError>{
@@ -391,25 +379,13 @@ pub async fn delete_user(pool: &SqlitePool, user_id: i64) -> Result<u64, SqlxErr
     return Ok(result.rows_affected());
 }
 
-pub async fn select_user_by_user_name(pool: &SqlitePool, user_name: &str) -> Result<User, SqlxError> {
+pub async fn select_user_by_name(pool: &SqlitePool, user_name: &str) -> Result<User, SqlxError> {
     let user = sqlx::query_as::<_, User>(
         "
         SELECT UserID as user_id, UserName as user_name FROM Users WHERE UserName = ?
         "
     )
         .bind(user_name)
-        .fetch_one(pool)
-        .await?;
-    Ok(user)
-}
-
-pub async fn select_user_by_user_id(pool: &SqlitePool, user_id: i64) -> Result<User, SqlxError> {
-    let user = sqlx::query_as::<_, User>(
-        "
-        SELECT UserID as user_id, UserName as user_name FROM Users WHERE UserID = ?
-        "
-    )
-        .bind(user_id)
         .fetch_one(pool)
         .await?;
     Ok(user)

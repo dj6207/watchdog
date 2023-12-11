@@ -1,7 +1,7 @@
 use tauri::{
     command,
     plugin::{Builder, TauriPlugin},
-    Manager, Runtime, State,
+    Runtime
 };
 
 use std::{ptr::null_mut, os::windows::ffi::OsStringExt};
@@ -10,7 +10,6 @@ use std::ffi::OsString;
 use winapi::um::errhandlingapi::GetLastError;
 use winapi::um::winbase::GetUserNameW;
 
-#[command]
 pub fn get_user_name() -> Result<Option<String>, Option<u32>>{
     unsafe {
         let mut size = 0;
@@ -33,13 +32,17 @@ pub fn get_user_name() -> Result<Option<String>, Option<u32>>{
     }
 }
 
+// TODO
 #[command]
-fn test() {
-    println!("Test");
+async fn get_current_user() {
+    match get_user_name() {
+        Ok(user) => {}
+        Err(err) => {}
+    }
 }
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("user")
-        .invoke_handler(tauri::generate_handler![get_user_name, test])
+        .invoke_handler(tauri::generate_handler![])
         .build()
 }

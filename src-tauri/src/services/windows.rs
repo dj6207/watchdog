@@ -1,9 +1,8 @@
 extern crate winapi;
 
 use tauri::{
-    command,
     plugin::{Builder, TauriPlugin},
-    Manager, Runtime, State,
+    Runtime,
 };
 
 use std::ffi::OsString;
@@ -36,7 +35,7 @@ use crate::database::sqlite_connector::{
     select_application_by_executable_name,
     select_application_window_by_window_name,
     select_usage_log_by_window_id,
-    select_user_by_user_name,
+    select_user_by_name,
     usage_logs_exists, 
     update_usage_logs_time,
 };
@@ -94,7 +93,6 @@ fn get_window_name(window_handle: *mut HWND__, window_name_length: i32, buffer: 
      }
 }
 
-#[command]
 fn get_foreground_window() -> Result<Option<String>, Option<u32>> {
     let window_handle = get_foreground_window_handle()?;
     if window_handle.is_null() {
@@ -171,7 +169,7 @@ pub async fn start_tacker(pool: SqlitePool, user_name: String) {
             }
             Err(err) => {log::error!("Error code: {}", err.unwrap_or_else(||1));}
         } 
-        match select_user_by_user_name(&pool, &user_name).await {
+        match select_user_by_name(&pool, &user_name).await {
             Ok(user) => {
                 if let Some(id) = window_id {
                     if let Ok(exists) = usage_logs_exists(&pool, id).await {
@@ -198,6 +196,5 @@ pub async fn start_tacker(pool: SqlitePool, user_name: String) {
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("windows")
-        .invoke_handler(tauri::generate_handler![get_foreground_window])
         .build()
 }
