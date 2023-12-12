@@ -8,6 +8,7 @@ use tauri::{
 
 mod services;
 mod database;
+mod types;
 
 use crate::database::sqlite_connector::{initialize_sqlite_database, create_user, user_name_exists};
 use crate::services::windows::start_tacker;
@@ -62,23 +63,23 @@ fn main() {
                             Ok(user_exist) => {
                               if !user_exist {
                                 if let Err(err) = create_user(&pool, &user_string).await {
-                                  log::error!("Error creating user. Error {}", err);
+                                  log::error!("{}", err);
                                 }
                               }
                               start_tacker(pool.clone(), user_string).await;
                             }
                             Err(err) => {
-                              log::error!("Database error. Error {}", err)
+                              log::error!("{}", err)
                             }
                           }
                         }  
                         Err(err) => {
-                            log::error!("Unable to get user. Error {}", err.unwrap_or_else(|| 1))
+                            log::error!("{}", err)
                         }
                     }
                 }
                 Err(err) => {
-                    log::error!("Failed to initalize database. Error {}", err);
+                    log::error!("{}", err);
                     app_handle.exit(1);
                 }
             }

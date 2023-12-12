@@ -1,85 +1,36 @@
 use tauri::{
     command,
-    plugin::{Builder, TauriPlugin},
+    plugin::{
+        Builder, 
+        TauriPlugin
+    },
     Runtime, State
 };
 
+use sqlx::{
+    Pool, 
+    Sqlite, 
+    Row, 
+    Error as SqlxError
+};
+
+use crate::types::structs::{
+    ApplicationUsageData, 
+    UsageLogData, 
+    UsageLog, 
+    ApplicationWindow, 
+    Application, 
+    User, 
+    TotalUsageTime
+};
+
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool};
-use sqlx::{Pool, Sqlite, Row, FromRow, Error as SqlxError};
-
 use std::str::FromStr;
-
-use serde::Serialize;
-
 use chrono::Local;
-
 use crate::SqlitePoolConnection;
+use crate::types::enums::SerializedError;
 
 const DATABASE_URL:&str = "sqlite:watchdog.db";
-
-// Move enum somewhere else
-#[derive(Debug, thiserror::Error)]
-enum SerializedError {
-    #[error(transparent)]
-    SqliteError(#[from] SqlxError)
-}
-
-impl Serialize for SerializedError {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-      S: serde::ser::Serializer,
-    {
-      serializer.serialize_str(self.to_string().as_ref())
-    }
-}
-
-#[derive(Debug, Serialize)]
-struct ApplicationUsageData {
-    application_id: i64,
-    executable_name: String,
-    total_time_spent: i64,
-}
-
-#[derive(Debug, Serialize)]
-struct UsageLogData {
-    log_id: i64,
-    window_name: String,
-    executable_name: String,
-    time_spent: i64,
-}
-
-#[derive(Debug, FromRow, Serialize)]
-struct TotalUsageTime {
-    total_usage_time: i64,
-}
-
-#[derive(Debug, FromRow)]
-pub struct UsageLog {
-    pub log_id: i64,
-    pub user_id: i64,
-    pub window_id: i64,
-    pub date: String,
-    pub time_spent: i64,
-}
-
-#[derive(Debug, FromRow)]
-pub struct ApplicationWindow {
-    pub window_id: i64,
-    pub application_id: i64,
-    pub window_name: String,
-}
-
-#[derive(Debug, FromRow)]
-pub struct Application {
-    pub application_id: i64,
-    pub executable_name: String,
-}
-
-#[derive(Debug, FromRow, Serialize)]
-pub struct User {
-    pub user_id: i64,
-    pub user_name: String,
-}
 
 #[command]
 async fn get_total_usage_log_time(pool_state: State<'_, SqlitePoolConnection>, date: String) -> Result<TotalUsageTime, SerializedError>{

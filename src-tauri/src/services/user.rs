@@ -1,21 +1,26 @@
 use tauri::{
     command,
-    plugin::{Builder, TauriPlugin},
+    plugin::{
+        Builder, 
+        TauriPlugin
+    },
     Runtime
 };
 
 use std::{ptr::null_mut, os::windows::ffi::OsStringExt};
 use std::ffi::OsString;
-
 use winapi::um::errhandlingapi::GetLastError;
 use winapi::um::winbase::GetUserNameW;
+use UnsafeErrors::WindowsError;
+use SerializedError::SerializedUnsafeError;
+use crate::types::enums::{SerializedError, UnsafeErrors};
 
-pub fn get_user_name() -> Result<Option<String>, Option<u32>>{
+pub fn get_user_name() -> Result<Option<String>, UnsafeErrors>{
     unsafe {
         let mut size = 0;
         GetUserNameW(null_mut(), &mut size);
         if size == 0 {
-            return Err(Some(GetLastError()));
+            return Err(WindowsError(Some(GetLastError())));
         }
         let mut buffer = vec![0u16; size as usize];
         if GetUserNameW(buffer.as_mut_ptr(), &mut size) != 0 {
@@ -27,22 +32,24 @@ pub fn get_user_name() -> Result<Option<String>, Option<u32>>{
             log::info!("User: {}", user_name);
             return Ok(Some(user_name));
         } else {
-            return Err(None);
+            return Err(WindowsError(None));
         }
     }
 }
 
-// TODO
 #[command]
-async fn get_current_user() {
+async fn get_current_user() -> Result<String, SerializedError> {
     match get_user_name() {
-        Ok(user) => {}
-        Err(err) => {}
+        Ok(user) => {
+            let user_name = user.unwrap_or_else(||"Unknown".to_string());
+            return Ok(user_name);
+        }
+        Err(err) => {return Err(SerializedUnsafeError(err));}
     }
 }
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("user")
-        .invoke_handler(tauri::generate_handler![])
+        .invoke_handler(tauri::generate_handler![get_current_user])
         .build()
 }
