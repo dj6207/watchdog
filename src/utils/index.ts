@@ -46,6 +46,16 @@ export const filterApplicationUsageData = (applicationUsageDataList:ApplicationU
     return filteredList.slice(0, 10);
 }
 
+export const getDaysOfCurrentWeek = ():Date[] => {
+    const currentDate = new Date();
+    const startDateOfWeek = currentDate.getDate() - currentDate.getDay() + (currentDate.getDay() === 0 ? -6 : 1);
+    let currentDaysOfWeek:Date[] = [];
+    for (let i = 0; i < 7; i++) {
+        currentDaysOfWeek.push(new Date(currentDate.getFullYear(), currentDate.getMonth(), startDateOfWeek + i));
+    }
+    return currentDaysOfWeek;
+}
+
 export const truncateString = (string: string, length: number): string => {
     return string.length > length ? `${string.slice(0, length)}...` : string;
 };

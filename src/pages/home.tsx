@@ -1,8 +1,11 @@
 import React from "react";
-import { UsagePieChart } from "../features/charts";
+import { UsageBarGraph, UsagePieChart } from "../features/charts";
 
 export const Home: React.FC = () => {
     return (
-      <UsagePieChart realTime={true} />
+      <>
+        <UsagePieChart realTime={true} />
+        <UsageBarGraph />
+      </>
     );
 }
