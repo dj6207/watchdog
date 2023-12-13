@@ -53,7 +53,7 @@ async fn get_usage_log_data(pool_state: State<'_, SqlitePoolConnection>, date: S
     let pool = pool_state.connection.lock().unwrap().clone().unwrap();
     let query = sqlx::query(
         "
-        SELECT ul.LogID, aw.WindowName, a.ExecutableName, ul.TimeSpent
+        SELECT ul.LogID, aw.WindowName, a.ExecutableName, ul.TimeSpent, ul.Date
         FROM UsageLogs ul
         INNER JOIN ApplicationWindows aw ON ul.WindowID = aw.WindowID
         INNER JOIN Applications a ON aw.ApplicationID = a.ApplicationID
@@ -69,6 +69,7 @@ async fn get_usage_log_data(pool_state: State<'_, SqlitePoolConnection>, date: S
             window_name: row.get(1),
             executable_name: row.get(2),
             time_spent: row.get(3),
+            date: row.get(4),
         }
     }).collect();
     return Ok(usage_log_data)

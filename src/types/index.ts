@@ -3,6 +3,7 @@ export type UsageLogData = {
     windowName: string;
     executableName: string;
     timeSpent: number;
+    date: string;
 }
 
 export type ApplicationUsageData = {
@@ -20,6 +21,7 @@ export type RustUsageLogData = {
     window_name: string,
     executable_name: string,
     time_spent: number,
+    date: string,
 }
 
 export type RustApplicationUsageData = {

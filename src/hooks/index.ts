@@ -56,6 +56,7 @@ export const useGetUsageLogData = (date:string):UsageLogData[] => {
                     windowName: obj.window_name,
                     executableName: obj.executable_name,
                     timeSpent: obj.time_spent,
+                    date: obj.date,
                 }));
                 setUsageLogData(usageLogDataObject);
             })
@@ -96,6 +97,7 @@ export const useUpdateUsageLogData = (date:string):UsageLogData[] => {
                         windowName: obj.window_name,
                         executableName: obj.executable_name,
                         timeSpent: obj.time_spent,
+                        date: obj.date,
                     }));
                     setUsageLogData(usageLogDataObject);
                 })

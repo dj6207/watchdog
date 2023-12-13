@@ -14,6 +14,7 @@ pub struct UsageLogData {
     pub window_name: String,
     pub executable_name: String,
     pub time_spent: i64,
+    pub date: String,
 }
 
 #[derive(Debug, FromRow, Serialize)]
