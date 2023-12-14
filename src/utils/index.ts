@@ -56,6 +56,9 @@ export const getDaysOfCurrentWeek = ():Date[] => {
     return currentDaysOfWeek;
 }
 
-export const truncateString = (string: string, length: number): string => {
-    return string.length > length ? `${string.slice(0, length)}...` : string;
+export const truncateString = (string: string | undefined, length: number = 10): string => {
+    if (string) {
+        return string.length > length ? `${string.slice(0, length)}...` : string;
+    }
+    return "?";
 };

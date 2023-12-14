@@ -67,7 +67,7 @@ export const UsageBarGraph: React.FC = () => {
                     >
                         <XAxis dataKey="date" />
                         <YAxis />
-                        <Bar dataKey="data" stackId="a" fill="#8884d8" />
+                        <Bar dataKey="" stackId="a" fill="#8884d8" />
                         <CartesianGrid strokeDasharray="3 3" />
                     </BarChart>
                 </>
