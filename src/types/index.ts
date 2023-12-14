@@ -1,3 +1,5 @@
+// Types
+
 export type UsageLogData = {
     logId: number;
     windowName: string;
@@ -11,6 +13,13 @@ export type ApplicationUsageData = {
     executableName: string;
     totalTimeSpent: number;
 }
+
+export type RouteItem = {
+    path: string;
+    label: string;
+}
+
+// Rust Types
 
 export type RustTotalUsageLogTime = {
     total_usage_time: number;
@@ -35,10 +44,7 @@ export type RustUser = {
     user_name: string,
 }
 
-export type RouteItem = {
-    path: string;
-    label: string;
-}
+// Props
 
 export type NavBarProps = {
     userRoutes: RouteItem[];
@@ -51,6 +57,8 @@ export type UsageStatisticsProps = {
 export type PieChartProps = {
     realTime: boolean;
 }
+
+// Redux States
 
 export interface UserState {
     userName: string;
