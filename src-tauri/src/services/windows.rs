@@ -1,16 +1,20 @@
-extern crate winapi;
-use std::ffi::OsString;
-use std::os::windows::ffi::OsStringExt;
-use std::ptr::null_mut;
 use tokio::time::{self, Duration};
-use winapi::um::psapi::GetModuleFileNameExW;
-use winapi::um::handleapi::CloseHandle;
-use winapi::{um::processthreadsapi::OpenProcess, ctypes::c_void};
-use winapi::um::errhandlingapi::GetLastError;
-use winapi::shared::windef::HWND__;
 use sqlx::sqlite::SqlitePool;
-use crate::types::enums::UnsafeErrors;
-use UnsafeErrors::WindowsError;
+
+use windows::{
+    core::{Error as WindowsError, HSTRING},
+    Win32::{
+        Foundation::{CloseHandle, GetLastError, HANDLE, HWND, E_FAIL},
+        System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ},
+        System::ProcessStatus::GetModuleFileNameExW,
+        UI::WindowsAndMessaging::{
+            GetWindowThreadProcessId, 
+            GetForegroundWindow, 
+            GetWindowTextLengthW, 
+            GetWindowTextW
+        },
+    },
+};
 
 use tauri::{
     plugin::{
@@ -18,18 +22,6 @@ use tauri::{
         TauriPlugin
     },
     Runtime,
-};
-
-use winapi::um::winuser::{
-    GetForegroundWindow, 
-    GetWindowTextLengthW,
-    GetWindowTextW,
-    GetWindowThreadProcessId,
-};
-
-use winapi::um::winnt::{
-    PROCESS_QUERY_INFORMATION, 
-    PROCESS_VM_READ
 };
 
 use crate::database::sqlite_connector::{
@@ -46,88 +38,113 @@ use crate::database::sqlite_connector::{
 
 const MONITOR_INTERVAL:u64 = 1;
 
-fn get_process_handle(process_id: u32) -> Result<*mut c_void, UnsafeErrors> {
+fn get_process_handle(process_id: u32) -> Result<HANDLE, WindowsError> {
     unsafe {
-        let process_handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, process_id);
-        if process_handle.is_null() {
-            return Err(WindowsError(Some(GetLastError())));
+        match OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, process_id) {
+            Ok(process_handle) => {return Ok(process_handle);}
+            Err(err) => {return Err(err);}
         }
-        return Ok(process_handle);
     }
 }
 
-fn get_foreground_process_id(window_handle: *mut HWND__) -> Result<u32, UnsafeErrors>{
+fn get_foreground_process_id(window_handle: HWND) -> Result<u32, ()>{
     unsafe {
         let mut process_id = 0;
-        GetWindowThreadProcessId(window_handle, &mut process_id);
+        GetWindowThreadProcessId(window_handle, Some(&mut process_id));
         if process_id == 0 {
-            return Err(WindowsError(Some(GetLastError())));
+            return Err(());
         }
         return Ok(process_id);
     }
 }
 
-fn get_foreground_window_handle() -> Result<*mut HWND__, UnsafeErrors> {
+fn get_foreground_window_handle() -> Result<HWND , ()> {
     unsafe {
         let window_handle = GetForegroundWindow();
-        if window_handle.is_null() {
-            return Err(WindowsError(Some(GetLastError())));
+        if window_handle.0 == 0{
+            return Err(());
         }
         return Ok(window_handle);
     }
 }
 
-fn get_window_name_length(window_handle: *mut HWND__) -> Result<i32, UnsafeErrors> {
+fn get_window_name_length_w(window_handle: HWND) -> Result<usize, ()> {
     unsafe {
         let window_name_length = GetWindowTextLengthW(window_handle);
         if window_name_length == 0 {
-            return Err(WindowsError(Some(GetLastError())));
+            return Err(());
         }
-        return Ok(window_name_length);
+        return Ok(window_name_length as usize);
     }
 }
 
-fn get_window_name(window_handle: *mut HWND__, window_name_length: i32, buffer: &mut Vec<u16>) -> Result<usize, UnsafeErrors>{
-     unsafe {
-        let window_name = GetWindowTextW(window_handle, buffer.as_mut_ptr(), buffer.len() as i32) as usize;
-        if window_name == 0 || window_name < window_name_length as usize {
-            return Err(WindowsError(None));
-        }
-        return Ok(window_name);
-     }
-}
-
-fn get_foreground_window() -> Result<Option<String>, UnsafeErrors> {
-    let window_handle = get_foreground_window_handle()?;
-    if window_handle.is_null() {
-        return Ok(None);
-    }
-    let window_name_length = get_window_name_length(window_handle)?;
-    let mut buffer = vec![0u16; (window_name_length + 1) as usize];
-    let window_name = get_window_name(window_handle, window_name_length, &mut buffer)?;
-    let window = OsString::from_wide(&buffer[..window_name]).to_string_lossy().into_owned();
-    log::info!("Window: {}", window);
-    return Ok(Some(window))
-}
-
-fn get_executable_name() -> Result<Option<String>, UnsafeErrors> {
-    let window_handle = get_foreground_window_handle()?;
-    if window_handle.is_null() {
-        return Ok(None);
-    }
-    let process_id = get_foreground_process_id(window_handle)?;
-    let process_handle = get_process_handle(process_id)?;
-    let mut executable_name = vec![0u16; 260];
+fn get_module_file_name_ex_w(process_handle: HANDLE, executable_name: &mut Vec<u16>) -> Result<u32, ()> {
     unsafe {
-        let module_file_name = GetModuleFileNameExW(process_handle, null_mut(), executable_name.as_mut_ptr(), executable_name.len() as u32);
-        CloseHandle(process_handle);
+        let module_file_name = GetModuleFileNameExW(process_handle, None, executable_name);
+        let _  = CloseHandle(process_handle);
         if module_file_name == 0 {
-            return Err(WindowsError(Some(GetLastError())));
+            return Err(());
         }
-        executable_name.truncate(module_file_name as usize);
-        let window_executable = OsString::from_wide(&executable_name).to_string_lossy().into_owned().split('\\').last().map(|s| s.to_string());
-        log::info!("Executable: {}", window_executable.clone().unwrap());
-        return Ok(window_executable)
+        return Ok(module_file_name);
+    }
+}
+
+
+fn get_foreground_window() -> Result<String, WindowsError> {
+    unsafe {
+        match get_foreground_window_handle() {
+            Ok(window_handle) => {
+                match get_window_name_length_w(window_handle) {
+                    Ok(length) => {
+                        let mut buffer = vec![0u16; length + 1];
+                        let len = GetWindowTextW(window_handle, &mut buffer);
+                        if len == 0 {
+                            match GetLastError() {
+                                Ok(_) => {return Err(WindowsError::new(E_FAIL, HSTRING::from("GetUserNameW failed without last error")));}
+                                Err(err) => {return Err(err)}
+                            }
+                        } else {
+                            buffer.truncate(len as usize);
+                            let window_name = String::from_utf16_lossy(&buffer);
+                            log::info!("Window: {}", window_name.clone());
+                            return Ok(window_name)
+                        }
+                    }
+                    Err(_) => {return Ok(String::new());} 
+                }
+            }
+            Err(_) => {return Ok(String::new());} 
+        }        
+    }
+}
+
+fn get_executable_name() -> Result<String, WindowsError> {
+    match get_foreground_window_handle() {
+        Ok(window_handle) => {
+            match get_foreground_process_id(window_handle) {
+                Ok(process_id) => {
+                    let process_handle = get_process_handle(process_id)?;
+                    let mut executable_name = vec![0u16; 260];
+                    match get_module_file_name_ex_w(process_handle, &mut executable_name) {
+                        Ok(module_file_name) => {
+                            executable_name.truncate(module_file_name as usize);
+                            let window_executable = String::from_utf16_lossy(&executable_name)
+                                .split('\\')
+                                .last()
+                                .map(|s| s.to_string());
+                            log::info!("Executable: {}", window_executable.clone().unwrap());
+                            match window_executable {
+                                Some(window_executable_name) => {return  Ok(window_executable_name);}
+                                None => {return Ok(String::new());}
+                            } 
+                        }
+                        Err(_) => {return Ok(String::new());}
+                    }
+                }
+                Err(_) => {return Ok(String::new());}
+            }
+        }
+        Err(_) => {return Ok(String::new());}
     }
 }
 
@@ -139,37 +156,34 @@ pub async fn start_tacker(pool: SqlitePool, user_name: String) {
         let mut window_id:Option<i64> = None;
 
         match get_executable_name() {
-            Ok(executable_name) => {
-                if let Some(executable_string) = executable_name {
-                    // let mut application_id:Option<i64> = None;
-                    match create_application(&pool, &executable_string).await {
-                        Ok(id) => {application_id = Some(id);}
-                        Err(err) => {
-                            if err.as_database_error().unwrap().is_unique_violation() {
-                                if let Ok(application) = select_application_by_executable_name(&pool, &executable_string).await {
-                                    application_id = Some(application.application_id);
-                                }
-                            } else {log::error!("{}", err);}
-                        }
+            Ok(executable_string) => {
+                match create_application(&pool, &executable_string).await {
+                    Ok(id) => {application_id = Some(id);}
+                    Err(err) => {
+                        if err.as_database_error().unwrap().is_unique_violation() {
+                            if let Ok(application) = select_application_by_executable_name(&pool, &executable_string).await {
+                                application_id = Some(application.application_id);
+                            }
+                        } else {log::error!("{}", err);}
                     }
                 }
+                
             }
             Err(err) => {log::error!("{}", err)}
         }
         match get_foreground_window() {
-            Ok(window_name) => {
-                if let Some(window_string) = window_name {
-                    match create_application_window(&pool, application_id, &window_string).await {
-                        Ok(id) => {window_id = Some(id);}
-                        Err(err) => {
-                            if err.as_database_error().unwrap().is_unique_violation() {
-                                if let Ok(application_window) = select_application_window_by_window_name(&pool, &window_string).await {
-                                    window_id = Some(application_window.window_id);
-                                }
-                            } else {log::error!("{}", err);}
-                        }
+            Ok(window_string) => {
+                match create_application_window(&pool, application_id, &window_string).await {
+                    Ok(id) => {window_id = Some(id);}
+                    Err(err) => {
+                        if err.as_database_error().unwrap().is_unique_violation() {
+                            if let Ok(application_window) = select_application_window_by_window_name(&pool, &window_string).await {
+                                window_id = Some(application_window.window_id);
+                            }
+                        } else {log::error!("{}", err);}
                     }
                 }
+                
             }
             Err(err) => {log::error!("{}", err);}
         } 

@@ -7,33 +7,39 @@ use tauri::{
     Runtime
 };
 
-use std::{ptr::null_mut, os::windows::ffi::OsStringExt};
-use std::ffi::OsString;
-use winapi::um::errhandlingapi::GetLastError;
-use winapi::um::winbase::GetUserNameW;
-use UnsafeErrors::WindowsError;
-use SerializedError::SerializedUnsafeError;
-use crate::types::enums::{SerializedError, UnsafeErrors};
+use std::ptr::null_mut;
+use SerializedError::SerializedWindowsError;
+use crate::types::enums::SerializedError;
 
-pub fn get_user_name() -> Result<Option<String>, UnsafeErrors>{
+use windows::{
+    core::{PWSTR, Error as WindowsError, HSTRING},
+    Win32::{
+        Foundation::{GetLastError,E_FAIL},
+        System::WindowsProgramming::GetUserNameW,
+    },
+};
+
+pub fn get_user_name() -> Result<String, WindowsError>{
     unsafe {
         let mut size = 0;
-        GetUserNameW(null_mut(), &mut size);
+        let _ = GetUserNameW(PWSTR(null_mut()), &mut size);
         if size == 0 {
-            return Err(WindowsError(Some(GetLastError())));
+            match GetLastError() {
+                Ok(_) => {return Err(WindowsError::new(E_FAIL, HSTRING::from("GetUserNameW failed without last error")));}
+                Err(err) => {return Err(err)}
+            }
         }
         let mut buffer = vec![0u16; size as usize];
-        if GetUserNameW(buffer.as_mut_ptr(), &mut size) != 0 {
-            // Remove trailing null character if present
-            if buffer.last() == Some(&0) {
-                buffer.pop();
+        match GetUserNameW(PWSTR(buffer.as_mut_ptr()), &mut size) {
+            Ok(_) => {
+                if buffer.last() == Some(&0) {
+                    buffer.pop();
+                }
+                let user_name = String::from_utf16_lossy(&buffer);
+                return Ok(user_name)
             }
-            let user_name = OsString::from_wide(&buffer).to_string_lossy().into_owned();
-            log::info!("User: {}", user_name);
-            return Ok(Some(user_name));
-        } else {
-            return Err(WindowsError(None));
-        }
+            Err(err) => {return Err(err);}
+        } 
     }
 }
 
@@ -41,10 +47,10 @@ pub fn get_user_name() -> Result<Option<String>, UnsafeErrors>{
 async fn get_current_user() -> Result<String, SerializedError> {
     match get_user_name() {
         Ok(user) => {
-            let user_name = user.unwrap_or_else(||"Unknown".to_string());
+            let user_name = user;
             return Ok(user_name);
         }
-        Err(err) => {return Err(SerializedUnsafeError(err));}
+        Err(err) => {return Err(SerializedWindowsError(err));}
     }
 }
 

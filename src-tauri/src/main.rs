@@ -57,8 +57,7 @@ fn main() {
                     let pool_state: State<'_, SqlitePoolConnection> = app_handle.state();
                     *pool_state.connection.lock().unwrap() = Some(pool.clone());
                     match get_user_name() {
-                        Ok(user_name) => {
-                          let user_string = user_name.unwrap();
+                        Ok(user_string) => {
                           match user_name_exists(&pool, &user_string).await {
                             Ok(user_exist) => {
                               if !user_exist {
