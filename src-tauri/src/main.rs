@@ -11,7 +11,7 @@ mod database;
 mod types;
 
 use crate::database::sqlite_connector::{initialize_sqlite_database, create_user, user_name_exists};
-use crate::services::windows::start_tacker;
+use crate::services::windows::{start_tacker, get_executable_names_playing_audio};
 use crate::services::user::get_user_name;
 
 use sqlx::{Pool, Sqlite};

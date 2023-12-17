@@ -7,6 +7,21 @@ use windows::{
         Foundation::{CloseHandle, GetLastError, HANDLE, HWND, E_FAIL},
         System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ},
         System::ProcessStatus::GetModuleFileNameExW,
+        System::Com::{
+            CoInitializeEx, 
+            CoCreateInstance,
+            CLSCTX_ALL,
+            COINIT_APARTMENTTHREADED,
+        },
+        Media::Audio::{
+            IMMDeviceEnumerator,
+            MMDeviceEnumerator, 
+            eRender, 
+            eConsole, 
+            IAudioSessionManager2,
+            IAudioSessionControl2,
+            AudioSessionStateActive,
+        },
         UI::WindowsAndMessaging::{
             GetWindowThreadProcessId, 
             GetForegroundWindow, 
@@ -15,6 +30,8 @@ use windows::{
         },
     },
 };
+
+use windows::core::ComInterface;
 
 use tauri::{
     plugin::{
@@ -37,6 +54,34 @@ use crate::database::sqlite_connector::{
 };
 
 const MONITOR_INTERVAL:u64 = 1;
+
+pub fn get_executable_names_playing_audio() -> Result<Vec<String>, WindowsError> {
+    unsafe {
+        let mut executable_name:Vec<String> = Vec::new();
+        CoInitializeEx(None, COINIT_APARTMENTTHREADED)?;
+        let enumerator:IMMDeviceEnumerator  = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
+        let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
+        let audio_session_manager:IAudioSessionManager2 = device.Activate(CLSCTX_ALL, None)?;
+        let session_enumerator = audio_session_manager.GetSessionEnumerator()?;
+        let count = session_enumerator.GetCount()?;
+        for i in 0..count {
+            let session = session_enumerator.GetSession(i)?;
+            let session_control: IAudioSessionControl2 = session.cast()?;
+            let state = session.GetState()?;
+            if state == AudioSessionStateActive {
+                let process_id = session_control.GetProcessId()?;
+                match get_executable_name_with_process_id(process_id) {
+                    Ok(window_executable_name) => {
+                        executable_name.push(window_executable_name);
+                    }
+                    Err(_) => {return Ok(executable_name)}
+                }
+            }
+        }
+        log::info!("{:?} is playing audio", executable_name);
+        return Ok(executable_name);
+    }
+}
 
 fn get_process_handle(process_id: u32) -> Result<HANDLE, WindowsError> {
     unsafe {
@@ -80,6 +125,7 @@ fn get_window_name_length_w(window_handle: HWND) -> Result<usize, ()> {
 
 fn get_module_file_name_ex_w(process_handle: HANDLE, executable_name: &mut Vec<u16>) -> Result<u32, ()> {
     unsafe {
+        // Maybe replace GetModuleFileNameExW with QueryFullProcessImageNameW
         let module_file_name = GetModuleFileNameExW(process_handle, None, executable_name);
         let _  = CloseHandle(process_handle);
         if module_file_name == 0 {
@@ -118,26 +164,33 @@ fn get_foreground_window() -> Result<String, WindowsError> {
     }
 }
 
+fn get_executable_name_with_process_id(process_id:u32) -> Result<String, WindowsError>{
+    let process_handle = get_process_handle(process_id)?;
+    let mut executable_name = vec![0u16; 260];
+    match get_module_file_name_ex_w(process_handle, &mut executable_name) {
+        Ok(module_file_name) => {
+            executable_name.truncate(module_file_name as usize);
+            let window_executable = String::from_utf16_lossy(&executable_name)
+                .split('\\')
+                .last()
+                .map(|s| s.to_string());
+            log::info!("Executable: {}", window_executable.clone().unwrap());
+            match window_executable {
+                Some(window_executable_name) => {return  Ok(window_executable_name);}
+                None => {return Ok(String::new());}
+            } 
+        }
+        Err(_) => {return Ok(String::new());}
+    }
+}
+
 fn get_executable_name() -> Result<String, WindowsError> {
     match get_foreground_window_handle() {
         Ok(window_handle) => {
             match get_foreground_process_id(window_handle) {
                 Ok(process_id) => {
-                    let process_handle = get_process_handle(process_id)?;
-                    let mut executable_name = vec![0u16; 260];
-                    match get_module_file_name_ex_w(process_handle, &mut executable_name) {
-                        Ok(module_file_name) => {
-                            executable_name.truncate(module_file_name as usize);
-                            let window_executable = String::from_utf16_lossy(&executable_name)
-                                .split('\\')
-                                .last()
-                                .map(|s| s.to_string());
-                            log::info!("Executable: {}", window_executable.clone().unwrap());
-                            match window_executable {
-                                Some(window_executable_name) => {return  Ok(window_executable_name);}
-                                None => {return Ok(String::new());}
-                            } 
-                        }
+                    match get_executable_name_with_process_id(process_id) {
+                        Ok(window_executable_name) => {return Ok(window_executable_name);}
                         Err(_) => {return Ok(String::new());}
                     }
                 }
