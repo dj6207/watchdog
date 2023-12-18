@@ -55,6 +55,13 @@ use crate::database::sqlite_connector::{
 
 const MONITOR_INTERVAL:u64 = 1;
 
+pub fn get_window_name_by_process_id(process_id: u32) {
+    unsafe {
+        
+    }
+}
+
+
 pub fn get_executable_names_playing_audio() -> Result<Vec<String>, WindowsError> {
     unsafe {
         let mut executable_name:Vec<String> = Vec::new();
@@ -205,6 +212,7 @@ pub async fn start_tacker(pool: SqlitePool, user_name: String) {
     let mut interval = time::interval(Duration::from_secs(MONITOR_INTERVAL));
     loop {
         interval.tick().await;
+        // let mut active_applications = Vec::new();
         let mut application_id:Option<i64> = None;
         let mut window_id:Option<i64> = None;
 
