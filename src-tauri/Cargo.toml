@@ -39,6 +39,9 @@ features = [
     "Win32_Media_Audio",
     "Win32_System_Com_StructuredStorage",
     "Win32_System_Variant",
+    "Media",
+    "Media_Control",
+    "Foundation",
 ]
 
 [features]

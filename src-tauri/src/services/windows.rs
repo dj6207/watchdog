@@ -4,34 +4,21 @@ use sqlx::sqlite::SqlitePool;
 use windows::{
     core::{Error as WindowsError, HSTRING},
     Win32::{
-        Foundation::{CloseHandle, GetLastError, HANDLE, HWND, E_FAIL, LPARAM, BOOL},
+        Foundation::{CloseHandle, GetLastError, HANDLE, HWND, E_FAIL},
         System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ},
         System::ProcessStatus::GetModuleFileNameExW,
-        System::Com::{
-            CoInitializeEx, 
-            CoCreateInstance,
-            CLSCTX_ALL,
-            COINIT_APARTMENTTHREADED,
-        },
-        Media::Audio::{
-            IMMDeviceEnumerator,
-            MMDeviceEnumerator, 
-            eRender, 
-            eConsole, 
-            IAudioSessionManager2,
-            IAudioSessionControl2,
-            AudioSessionStateActive,
-        },
         UI::WindowsAndMessaging::{
             GetWindowThreadProcessId, 
             GetForegroundWindow, 
             GetWindowTextLengthW, 
-            GetWindowTextW, EnumWindows, IsWindowVisible
+            GetWindowTextW,
         },
     },
+    Media::Control::{
+        GlobalSystemMediaTransportControlsSessionManager, 
+        GlobalSystemMediaTransportControlsSession,
+    },
 };
-
-use windows::core::ComInterface;
 
 use tauri::{
     plugin::{
@@ -55,111 +42,15 @@ use crate::database::sqlite_connector::{
 
 const MONITOR_INTERVAL:u64 = 1;
 
-#[derive(Debug)]
-struct ProcessIdWindowNameObject {
-    process_id: u32,
-    window_name: Option<String>,
-}
-
-unsafe extern "system" fn find_window_name_by_process_id_callback(window_handle: HWND, lparam: LPARAM) -> BOOL {
-    let callback_object = &mut *(lparam.0 as *mut ProcessIdWindowNameObject);
-    if IsWindowVisible(window_handle).as_bool() {
-        let mut current_window_process_id = 0;
-        GetWindowThreadProcessId(window_handle, Some(&mut current_window_process_id));
-        if current_window_process_id == callback_object.process_id {
-            match get_window_name_length_w(window_handle) {
-                Ok(length) => {
-                    let mut buffer = vec![0u16; length + 1];
-                    let len = GetWindowTextW(window_handle, &mut buffer);
-                    if len != 0 {
-                        buffer.truncate(len as usize);
-                        let window_name = String::from_utf16_lossy(&buffer);
-                        callback_object.window_name = Some(window_name);
-                        return BOOL(0)
-                    }
-                }
-                Err(_) => { return BOOL(1);} 
-            }
-        }
+async fn get_current_media_session() -> Result<(), WindowsError> {
+    let media_session_manager = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()?.await?;
+    if let Ok(current_session) = media_session_manager.GetCurrentSession() {
+        let media_properties = current_session.TryGetMediaPropertiesAsync()?.await?;
+        log::info!("Media Properties Title {:?}", media_properties.Title());
+    } else {
+        log::info!("No media currently playing")
     }
-    return BOOL(1);
-}
-
-pub fn get_window_name_playing_audio() -> Result<Vec<String>, WindowsError> {
-    unsafe {
-        let mut window_names:Vec<String> = Vec::new();
-        match get_process_ids_playing_audio() {
-            Ok(process_ids) => {
-                for id in process_ids {
-                    let mut callback_object = ProcessIdWindowNameObject {
-                        process_id: id,
-                        window_name: None,
-                    };
-                    EnumWindows(Some(find_window_name_by_process_id_callback), LPARAM(&mut callback_object as *mut _ as isize))?;
-                    if let Some(window_name) = callback_object.window_name {
-                        window_names.push(window_name)
-                    }
-                }
-            }
-            Err(err) => {
-                log::error!("{}", err);
-                return Err(err);
-            }
-        }
-        return Ok(window_names);
-    }
-}
-
-pub fn get_process_ids_playing_audio() -> Result<Vec<u32>, WindowsError> {
-    unsafe {
-        let mut process_ids:Vec<u32> = Vec::new();
-        CoInitializeEx(None, COINIT_APARTMENTTHREADED)?;
-        let enumerator:IMMDeviceEnumerator  = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
-        let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
-        let audio_session_manager:IAudioSessionManager2 = device.Activate(CLSCTX_ALL, None)?;
-        let session_enumerator = audio_session_manager.GetSessionEnumerator()?;
-        let count = session_enumerator.GetCount()?;
-        for i in 0..count {
-            let session = session_enumerator.GetSession(i)?;
-            let session_control: IAudioSessionControl2 = session.cast()?;
-            let state = session.GetState()?;
-            if state == AudioSessionStateActive {
-                let process_id = session_control.GetProcessId()?;
-                process_ids.push(process_id);
-            }
-        }
-        return Ok(process_ids)
-    }
-}
-
-// This will get all the executable names that are currently playing audio
-//  
-pub fn get_executable_names_playing_audio() -> Result<Vec<String>, WindowsError> {
-    unsafe {
-        let mut executable_name:Vec<String> = Vec::new();
-        CoInitializeEx(None, COINIT_APARTMENTTHREADED)?;
-        let enumerator:IMMDeviceEnumerator  = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
-        let device = enumerator.GetDefaultAudioEndpoint(eRender, eConsole)?;
-        let audio_session_manager:IAudioSessionManager2 = device.Activate(CLSCTX_ALL, None)?;
-        let session_enumerator = audio_session_manager.GetSessionEnumerator()?;
-        let count = session_enumerator.GetCount()?;
-        for i in 0..count {
-            let session = session_enumerator.GetSession(i)?;
-            let session_control: IAudioSessionControl2 = session.cast()?;
-            let state = session.GetState()?;
-            if state == AudioSessionStateActive {
-                let process_id = session_control.GetProcessId()?;
-                match get_executable_name_with_process_id(process_id) {
-                    Ok(window_executable_name) => {
-                        executable_name.push(window_executable_name);
-                    }
-                    Err(_) => {return Ok(executable_name)}
-                }
-            }
-        }
-        log::info!("{:?} is playing audio", executable_name);
-        return Ok(executable_name);
-    }
+    Ok(())
 }
 
 fn get_process_handle(process_id: u32) -> Result<HANDLE, WindowsError> {
@@ -280,6 +171,7 @@ fn get_executable_name() -> Result<String, WindowsError> {
     }
 }
 
+// Write better comments alreadu for got what all this does lol
 pub async fn start_tacker(pool: SqlitePool, user_name: String) {
     let mut interval = time::interval(Duration::from_secs(MONITOR_INTERVAL));
     loop {
@@ -287,7 +179,9 @@ pub async fn start_tacker(pool: SqlitePool, user_name: String) {
         // let mut active_applications = Vec::new();
         let mut application_id:Option<i64> = None;
         let mut window_id:Option<i64> = None;
+        let mut window_name:Option<String> = None;
 
+        // Get application id associated with executable name
         match get_executable_name() {
             Ok(executable_string) => {
                 match create_application(&pool, &executable_string).await {
@@ -304,8 +198,11 @@ pub async fn start_tacker(pool: SqlitePool, user_name: String) {
             }
             Err(err) => {log::error!("{}", err)}
         }
+
+        // Get window id associated with window name
         match get_foreground_window() {
             Ok(window_string) => {
+                window_name = Some(window_string.clone());
                 match create_application_window(&pool, application_id, &window_string).await {
                     Ok(id) => {window_id = Some(id);}
                     Err(err) => {
@@ -320,6 +217,8 @@ pub async fn start_tacker(pool: SqlitePool, user_name: String) {
             }
             Err(err) => {log::error!("{}", err);}
         } 
+
+        // Updates usage logs using application id and window id
         match select_user_by_name(&pool, &user_name).await {
             Ok(user) => {
                 if let Some(id) = window_id {
@@ -342,9 +241,6 @@ pub async fn start_tacker(pool: SqlitePool, user_name: String) {
             }
             Err(err) => {log::error!("{}", err);}
         }
-
-        // TODO: Needs Testing
-        log::info!("{:?}", get_window_name_playing_audio());
     }
 }
 
@@ -353,7 +249,24 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         .build()
 }
 
+// TODO: Write test for each functions
 #[cfg(test)]
 mod test {
+    use crate::setup_logging;
+
     use super::*;
+    use tokio;
+
+    fn setup_test() {
+        let _ = setup_logging();
+    }
+
+    #[tokio::test]
+    async fn test_get_current_media_session() {
+        setup_test();
+        match get_current_media_session().await {
+            Ok(_) => {}
+            Err(_) => {}
+        }
+    }
  }

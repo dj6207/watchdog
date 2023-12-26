@@ -11,7 +11,7 @@ mod database;
 mod types;
 
 use crate::database::sqlite_connector::{initialize_sqlite_database, create_user, user_name_exists};
-use crate::services::windows::{start_tacker, get_executable_names_playing_audio};
+use crate::services::windows::start_tacker;
 use crate::services::user::get_user_name;
 
 use sqlx::{Pool, Sqlite};
@@ -20,7 +20,7 @@ use std::sync::Mutex;
 
 struct SqlitePoolConnection{connection: Mutex<Option<Pool<Sqlite>>>}
 
-fn setup_logging() -> Result<(), fern::InitError> {
+pub fn setup_logging() -> Result<(), fern::InitError> {
   fern::Dispatch::new()
     .format(move |out, message, record| {
       out.finish(format_args!(
