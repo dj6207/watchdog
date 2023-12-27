@@ -3,16 +3,24 @@ import { useCheckDataBaseConnected, useUpdateUsageLogData, useUpdateApplicationU
 import { PieChart, Pie, Tooltip, TooltipProps , Cell, Legend } from 'recharts';
 import { formatDate, filterUsageLogData, formatTime, truncateString, filterApplicationUsageData } from "../../../utils";
 import { COLORS } from "../../../constants";
-import '../assets/UsagePieChart.css'
 import { UsageLogData, ApplicationUsageData, PieChartProps } from "../../../types";
-import { UsageStatistics } from "../../statistics";
+import { UsageStatistics } from "../..";
+import { useAppSelector } from "../../../app/hooks";
+import '../assets/UsagePieChart.css'
 
-export const UsagePieChart: React.FC<PieChartProps> = ({ realTime }: PieChartProps) => {
+export const UsagePieChart: React.FC<PieChartProps> = ({ }: PieChartProps) => {
     const [useUsageLogData, setUseUsageLogData] = useState(true);
-    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-    
-    const date:string = formatDate(new Date());
+    const today:Date = new Date();
+    const selectedDate:Date = useAppSelector((state) => state.graph.selectedDate);
 
+    const formatedToday:string = formatDate(today);
+    const formatedSelectDate:string = formatDate(selectedDate);
+    const realTime:boolean = formatedToday == formatedSelectDate;
+    
+    const dataBaseConnection:boolean = useCheckDataBaseConnected();
+    const usageLogData:UsageLogData[] = realTime ? filterUsageLogData(useUpdateUsageLogData(formatedToday)) : filterUsageLogData(useGetUsageLogData(formatedSelectDate));
+    const applicationUsageData:ApplicationUsageData[] = realTime ? filterApplicationUsageData(useUpdateApplicationUsageData(formatedToday)) : filterApplicationUsageData(useGetApplicationUsageData(formatedSelectDate));
+    
     const toggleNameKey = () => setUseUsageLogData(!useUsageLogData);
 
     const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
@@ -27,10 +35,6 @@ export const UsagePieChart: React.FC<PieChartProps> = ({ realTime }: PieChartPro
         }
     };
 
-    const dataBaseConnection:boolean = useCheckDataBaseConnected();
-    const usageLogData:UsageLogData[] = realTime ? filterUsageLogData(useUpdateUsageLogData(date)) : filterUsageLogData(useGetUsageLogData(formatDate(selectedDate)));
-    const applicationUsageData:ApplicationUsageData[] = realTime ? filterApplicationUsageData(useUpdateApplicationUsageData(date)) : filterApplicationUsageData(useGetApplicationUsageData(formatDate(selectedDate)));
-
     // Label key error bruh
     return (
         <div className="usage-pie-chart-container">
@@ -38,7 +42,7 @@ export const UsagePieChart: React.FC<PieChartProps> = ({ realTime }: PieChartPro
                 <>
                     <button onClick={toggleNameKey}>Toggle Graph</button>
                     <div className="chart">
-                        <UsageStatistics className="usage-statistics" realTime={realTime} selectedDate={selectedDate} setSelectedDate={setSelectedDate}/>
+                        <UsageStatistics className="usage-statistics"/>
                         <hr className="separator"/>
                         <PieChart className="pie-chart" width={600} height={400} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
                             <Pie

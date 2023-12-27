@@ -1,31 +1,30 @@
 import React from "react";
 import { useGetTotalUsageLogTime, useUpdateTotalUsageLogTime } from "../../../hooks";
-import { formatDate, formatDateMonthDayYear, formatTime } from "../../../utils";
+import { formatDate, formatTime } from "../../../utils";
 import { UsageStatisticsProps } from "../../../types";
 import "../assets/usageStatistics.css";
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
+import { useAppDispatch, useAppSelector } from "../../../app/hooks";
+import { setSelectedDate } from "../../../slices/graphSlice";
 
-export const UsageStatistics: React.FC<UsageStatisticsProps> = ({ realTime, className, selectedDate, setSelectedDate }:UsageStatisticsProps) => {
+export const UsageStatistics: React.FC<UsageStatisticsProps> = ({ className }:UsageStatisticsProps) => {
+    const dispatch = useAppDispatch();
+
     const today:Date = new Date();
-    const date:string = formatDate(today);
+    const selectedDate:Date = useAppSelector((state) => state.graph.selectedDate);
 
-    const totalUsageTime = realTime ? useUpdateTotalUsageLogTime(date) : useGetTotalUsageLogTime(formatDate(selectedDate));
-    const formattedTime = formatTime(totalUsageTime);
+    const totalUsageTime:number = selectedDate == today ? useUpdateTotalUsageLogTime(formatDate(today)) : useGetTotalUsageLogTime(formatDate(selectedDate));
 
     const handleDateChange = (date: Date) => {
-        setSelectedDate(date);
+        dispatch(setSelectedDate(date));
     };
 
     // TODO: Add more statistics
     return (
         <div className={`usage-statistic-container ${className}`}>
-            {!realTime ? (
-                <DatePicker className="calender" selected={selectedDate} onChange={handleDateChange} />
-            ) : (
-                <div className="date">{formatDateMonthDayYear(today)}</div>
-            )}
-            <div className="usage-time">{formattedTime}</div>
+            <DatePicker className="calender" selected={selectedDate} onChange={handleDateChange} />
+            <div className="usage-time">{formatTime(totalUsageTime)}</div>
         </div>
     )
 }

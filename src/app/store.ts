@@ -1,9 +1,10 @@
 import { configureStore } from "@reduxjs/toolkit";
-import { userSlice } from "../slices";
+import { userSlice, graphSlice } from "../slices";
 
 export const store = configureStore({
     reducer: {
         user: userSlice,
+        graph: graphSlice,
     },
 });
 

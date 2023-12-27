@@ -51,18 +51,19 @@ export type NavBarProps = {
 }
 
 export type UsageStatisticsProps = {
-    realTime: boolean;
+    // realTime: boolean;
     className?: string | undefined;
-    selectedDate: Date;
-    setSelectedDate(value: React.SetStateAction<Date>): void;
 }
 
 export type PieChartProps = {
-    realTime: boolean;
 }
 
 // Redux States
 
 export interface UserState {
-    userName: string;
+    userName: string | undefined;
+}
+
+export interface GraphState {
+    selectedDate: Date;
 }

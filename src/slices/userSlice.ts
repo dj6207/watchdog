@@ -2,7 +2,7 @@ import { createSlice } from '@reduxjs/toolkit';
 import { UserState } from "../types";
 
 const initialState: UserState = {
-    userName: '',
+    userName: undefined,
 }
 
 const userSlice = createSlice({
