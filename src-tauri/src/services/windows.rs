@@ -14,10 +14,7 @@ use windows::{
             GetWindowTextW,
         },
     },
-    Media::Control::{
-        GlobalSystemMediaTransportControlsSessionManager, 
-        GlobalSystemMediaTransportControlsSession,
-    },
+    Media::Control::GlobalSystemMediaTransportControlsSessionManager, 
 };
 
 use tauri::{
@@ -28,7 +25,7 @@ use tauri::{
     Runtime,
 };
 
-use crate::database::sqlite_connector::{
+use crate::{database::sqlite_connector::{
     create_application, 
     create_application_window,
     create_usage_logs,
@@ -38,19 +35,61 @@ use crate::database::sqlite_connector::{
     select_user_by_name,
     usage_logs_exists, 
     update_usage_logs_time,
-};
+}, types::structs::Media};
 
 const MONITOR_INTERVAL:u64 = 1;
 
-async fn get_current_media_session() -> Result<(), WindowsError> {
+async fn get_current_media_session() -> Result<Media, WindowsError> {
     let media_session_manager = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()?.await?;
-    if let Ok(current_session) = media_session_manager.GetCurrentSession() {
-        let media_properties = current_session.TryGetMediaPropertiesAsync()?.await?;
-        log::info!("Media Properties Title {:?}", media_properties.Title());
-    } else {
-        log::info!("No media currently playing")
+    match media_session_manager.GetCurrentSession() {
+        Ok(current_session) => {
+            let properties = current_session.TryGetMediaPropertiesAsync()?.await?;
+            let media = Media {
+                title: properties.Title()?.to_string_lossy(),
+                artist: properties.Artist()?.to_string_lossy(),
+                // TODO: Get actual thumbnail
+                thumbnail: None,
+            };
+            return Ok(media)
+        }
+        Err(err) => {Err(err)}
     }
-    Ok(())
+}
+
+async fn get_all_media_sessions() -> Result<Vec<Media>, WindowsError> {
+    let media_session_manager = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()?.await?;
+    let mut medias:Vec<Media> = Vec::new();
+    match media_session_manager.GetSessions() {
+        Ok(sessions) => {
+            for session in sessions.into_iter() {
+                let properties = session.TryGetMediaPropertiesAsync()?.await?;
+                let media = Media {
+                    title: properties.Title()?.to_string_lossy(),
+                    artist: properties.Artist()?.to_string_lossy(),
+                    // TODO: Get actual thumbnail
+                    thumbnail: None,
+                };
+                medias.push(media);
+            }
+        }
+        Err(err) => {return Err(err);}
+    }
+    return Ok(medias);
+    // if let Ok(sessions) = media_session_manager.GetSessions() {
+    //     for session in sessions.into_iter() {
+    //         let properties = session.TryGetMediaPropertiesAsync()?.await?;
+    //         medias.push(
+    //             Media {
+    //                 title: properties.Title()?.to_string_lossy(),
+    //                 artist: properties.Artist()?.to_string_lossy(),
+    //                 // TODO: Get actual thumbnail
+    //                 thumbnail: None,
+    //             }
+    //         );
+    //     }
+    // } else {
+    //     log::info!("No media currently playing")
+    // }
 }
 
 fn get_process_handle(process_id: u32) -> Result<HANDLE, WindowsError> {
@@ -262,11 +301,23 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_get_current_media_session() {
+    async fn test_get_current_media_session() -> Result<(), WindowsError> {
         setup_test();
         match get_current_media_session().await {
-            Ok(_) => {}
-            Err(_) => {}
+            Ok(_) => {Ok(())}
+            Err(e) => {Err(e)}
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_all_media_sessions() -> Result<(), WindowsError> {
+        setup_test();
+        match get_all_media_sessions().await {
+            Ok(medias) => {
+                log::info!("Medias: {:?}", medias);
+                Ok(())
+            }
+            Err(e) => {Err(e)}
         }
     }
  }

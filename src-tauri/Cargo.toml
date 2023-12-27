@@ -42,6 +42,9 @@ features = [
     "Media",
     "Media_Control",
     "Foundation",
+    "Foundation_Collections",
+    "Foundation_Collections",
+    "Storage_Streams",
 ]
 
 [features]

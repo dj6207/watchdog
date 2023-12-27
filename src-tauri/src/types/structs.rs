@@ -49,3 +49,10 @@ pub struct User {
     pub user_id: i64,
     pub user_name: String,
 }
+
+#[derive(Debug)]
+pub struct Media {
+    pub title: String,
+    pub artist: String,
+    pub thumbnail: Option<Vec<u8>>,
+}
