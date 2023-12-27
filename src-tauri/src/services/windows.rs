@@ -14,7 +14,6 @@ use windows::{
             GetWindowTextW,
         },
     },
-    Media::Control::GlobalSystemMediaTransportControlsSessionManager, 
 };
 
 use tauri::{
@@ -25,7 +24,7 @@ use tauri::{
     Runtime,
 };
 
-use crate::{database::sqlite_connector::{
+use crate::database::sqlite_connector::{
     create_application, 
     create_application_window,
     create_usage_logs,
@@ -35,62 +34,9 @@ use crate::{database::sqlite_connector::{
     select_user_by_name,
     usage_logs_exists, 
     update_usage_logs_time,
-}, types::structs::Media};
+};
 
 const MONITOR_INTERVAL:u64 = 1;
-
-async fn get_current_media_session() -> Result<Media, WindowsError> {
-    let media_session_manager = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()?.await?;
-    match media_session_manager.GetCurrentSession() {
-        Ok(current_session) => {
-            let properties = current_session.TryGetMediaPropertiesAsync()?.await?;
-            let media = Media {
-                title: properties.Title()?.to_string_lossy(),
-                artist: properties.Artist()?.to_string_lossy(),
-                // TODO: Get actual thumbnail
-                thumbnail: None,
-            };
-            return Ok(media)
-        }
-        Err(err) => {Err(err)}
-    }
-}
-
-async fn get_all_media_sessions() -> Result<Vec<Media>, WindowsError> {
-    let media_session_manager = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()?.await?;
-    let mut medias:Vec<Media> = Vec::new();
-    match media_session_manager.GetSessions() {
-        Ok(sessions) => {
-            for session in sessions.into_iter() {
-                let properties = session.TryGetMediaPropertiesAsync()?.await?;
-                let media = Media {
-                    title: properties.Title()?.to_string_lossy(),
-                    artist: properties.Artist()?.to_string_lossy(),
-                    // TODO: Get actual thumbnail
-                    thumbnail: None,
-                };
-                medias.push(media);
-            }
-        }
-        Err(err) => {return Err(err);}
-    }
-    return Ok(medias);
-    // if let Ok(sessions) = media_session_manager.GetSessions() {
-    //     for session in sessions.into_iter() {
-    //         let properties = session.TryGetMediaPropertiesAsync()?.await?;
-    //         medias.push(
-    //             Media {
-    //                 title: properties.Title()?.to_string_lossy(),
-    //                 artist: properties.Artist()?.to_string_lossy(),
-    //                 // TODO: Get actual thumbnail
-    //                 thumbnail: None,
-    //             }
-    //         );
-    //     }
-    // } else {
-    //     log::info!("No media currently playing")
-    // }
-}
 
 fn get_process_handle(process_id: u32) -> Result<HANDLE, WindowsError> {
     unsafe {
@@ -215,10 +161,8 @@ pub async fn start_tacker(pool: SqlitePool, user_name: String) {
     let mut interval = time::interval(Duration::from_secs(MONITOR_INTERVAL));
     loop {
         interval.tick().await;
-        // let mut active_applications = Vec::new();
         let mut application_id:Option<i64> = None;
         let mut window_id:Option<i64> = None;
-        let mut window_name:Option<String> = None;
 
         // Get application id associated with executable name
         match get_executable_name() {
@@ -241,7 +185,6 @@ pub async fn start_tacker(pool: SqlitePool, user_name: String) {
         // Get window id associated with window name
         match get_foreground_window() {
             Ok(window_string) => {
-                window_name = Some(window_string.clone());
                 match create_application_window(&pool, application_id, &window_string).await {
                     Ok(id) => {window_id = Some(id);}
                     Err(err) => {
@@ -287,37 +230,3 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("windows")
         .build()
 }
-
-// TODO: Write test for each functions
-#[cfg(test)]
-mod test {
-    use crate::setup_logging;
-
-    use super::*;
-    use tokio;
-
-    fn setup_test() {
-        let _ = setup_logging();
-    }
-
-    #[tokio::test]
-    async fn test_get_current_media_session() -> Result<(), WindowsError> {
-        setup_test();
-        match get_current_media_session().await {
-            Ok(_) => {Ok(())}
-            Err(e) => {Err(e)}
-        }
-    }
-
-    #[tokio::test]
-    async fn test_get_all_media_sessions() -> Result<(), WindowsError> {
-        setup_test();
-        match get_all_media_sessions().await {
-            Ok(medias) => {
-                log::info!("Medias: {:?}", medias);
-                Ok(())
-            }
-            Err(e) => {Err(e)}
-        }
-    }
- }

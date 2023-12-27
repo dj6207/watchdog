@@ -52,6 +52,9 @@ export type NavBarProps = {
 
 export type UsageStatisticsProps = {
     realTime: boolean;
+    className?: string | undefined;
+    selectedDate: Date;
+    setSelectedDate(value: React.SetStateAction<Date>): void;
 }
 
 export type PieChartProps = {

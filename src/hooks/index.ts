@@ -108,7 +108,7 @@ export const useUpdateUsageLogData = (date:string):UsageLogData[] => {
         getUsageLogData();
         const interval = setInterval(getUsageLogData, 1000);
         return () => clearInterval(interval);
-    }, []);
+    }, [date]);
     return usageLogData;
 }
 
@@ -132,7 +132,7 @@ export const useUpdateApplicationUsageData = (date:string):ApplicationUsageData[
         getApplicationUsageData();
         const interval = setInterval(getApplicationUsageData, 1000);
         return () => clearInterval(interval);
-    }, []);
+    }, [date]);
     return applicationUsageData
 }
 

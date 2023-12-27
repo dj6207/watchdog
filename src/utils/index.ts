@@ -7,6 +7,15 @@ export const formatDate = (date:Date):string => {
     return `${year}-${month}-${day}`;
 }
 
+export const formatDateMonthDayYear = (date:Date):string => {
+    const options: Intl.DateTimeFormatOptions = {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    };
+    return date.toLocaleDateString('en-US', options);
+}
+
 export const formatTime = (seconds: number): string => {
     const secondsInMinute = 60;
     const secondsInHour = 3600;

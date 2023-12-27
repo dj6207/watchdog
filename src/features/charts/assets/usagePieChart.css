@@ -1,3 +1,25 @@
+.usage-pie-chart-container {
+    display: grid;
+}
+
+.chart {
+    border-style: solid;
+    border-width: 2px;
+    border-color: grey;
+    border-radius: 10px;
+}
+
+.separator {
+    border: none;
+    height: 2px;
+    background-color: grey;
+}
+
+.usage-statistics {
+    margin-top: 10px;
+    margin-left: 10px;
+}
+
 .custom-tooltip {
     background-color: rgba(0, 0, 0, 0.75);
     padding: 10px;

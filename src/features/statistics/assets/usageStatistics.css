@@ -1,0 +1,13 @@
+.usage-statistic-container {
+    display: block;
+    text-align: left;
+}
+
+.date {
+    font-size: small;
+}
+
+.usage-time {
+    font-weight: bold;
+    font-size: medium;
+}

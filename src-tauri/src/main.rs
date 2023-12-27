@@ -48,6 +48,7 @@ fn main() {
     .plugin(services::user::init())
     .plugin(database::sqlite_connector::init())
     .plugin(services::windows::init())
+    .plugin(services::media::init())
     .setup(|app_handler| {
         let app_handle = app_handler.app_handle();
         tauri::async_runtime::spawn(async move {
