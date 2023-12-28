@@ -2,6 +2,16 @@
     display: grid;
 }
 
+.chart-data-selector {
+    display: flex;
+    width: 100%;
+}
+
+.chart-data-selector button {
+    flex: 1;
+    border-radius: 0px;
+}
+
 .chart {
     border-style: solid;
     border-width: 2px;
@@ -23,7 +33,7 @@
 .custom-tooltip {
     background-color: rgba(0, 0, 0, 0.75);
     padding: 10px;
-    border-radius: 5px;
+    border-radius: 10px;
     color: white;
 }
 

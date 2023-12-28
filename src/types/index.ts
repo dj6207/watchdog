@@ -51,7 +51,6 @@ export type NavBarProps = {
 }
 
 export type UsageStatisticsProps = {
-    // realTime: boolean;
     className?: string | undefined;
 }
 
@@ -66,4 +65,11 @@ export interface UserState {
 
 export interface GraphState {
     selectedDate: Date;
+}
+
+// Enums
+
+export enum ChartDataType {
+    WindowUsageData,
+    ExecutableUsageData,
 }

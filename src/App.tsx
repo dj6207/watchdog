@@ -12,7 +12,7 @@ function App() {
   return (
     <>
       <BrowserRouter>
-        <NavBar userRoutes={userRoutes} />
+        {/* <NavBar userRoutes={userRoutes} /> */}
         <Routes>
           <Route path='/' element={<Navigate to="/home" />}/>
           <Route path='/home' Component={Home}/>
