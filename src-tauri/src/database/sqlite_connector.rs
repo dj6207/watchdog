@@ -375,6 +375,13 @@ pub async fn initialize_sqlite_database() -> Result<Pool<Sqlite>, SqlxError>{
             FOREIGN KEY (UserID) REFERENCES Users(UserID),
             FOREIGN KEY (WindowID) REFERENCES ApplicationWindows(WindowID)
         );
+
+        CREATE TABLE IF NOT EXISTS Media (
+            MediaID INTEGER PRIMARY KEY AUTOINCREMENT,
+            MediaTitle TEXT,
+            MediaArtist TEXT UNIQUE,
+            MediaThumbnail BLOB
+        );
         "
     ).execute(&pool).await?;
     return Ok(pool);

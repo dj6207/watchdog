@@ -64,7 +64,8 @@ export interface UserState {
 }
 
 export interface GraphState {
-    selectedDate: Date;
+    // selectedDate: Date;
+    selectedDate: string;
 }
 
 // Enums

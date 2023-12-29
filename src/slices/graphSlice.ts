@@ -2,7 +2,7 @@ import { createSlice } from "@reduxjs/toolkit";
 import { GraphState } from "../types";
 
 const initialState: GraphState = {
-    selectedDate: new Date(),
+    selectedDate: (new Date).toISOString(),
 }
 
 const graphSlice = createSlice({

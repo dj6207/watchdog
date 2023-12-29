@@ -12,12 +12,18 @@ export const UsageStatistics: React.FC<UsageStatisticsProps> = ({ className }:Us
     const dispatch = useAppDispatch();
 
     const today:Date = new Date();
-    const selectedDate:Date = useAppSelector((state) => state.graph.selectedDate);
+    const selectedDateISO:string = useAppSelector((state) => state.graph.selectedDate);
+    const selectedDate:Date = new Date(selectedDateISO);
 
-    const totalUsageTime:number = selectedDate == today ? useUpdateTotalUsageLogTime(formatDate(today)) : useGetTotalUsageLogTime(formatDate(selectedDate));
+    const formatedToday:string = formatDate(today);
+    const formatedSelectDate:string = formatDate(selectedDate);
+    const realTime:boolean = formatedToday == formatedSelectDate;
+
+
+    const totalUsageTime:number = realTime ? useUpdateTotalUsageLogTime(formatedToday) : useGetTotalUsageLogTime(formatedSelectDate);
 
     const handleDateChange = (date: Date) => {
-        dispatch(setSelectedDate(date));
+        dispatch(setSelectedDate(date.toISOString()));
     };
 
     // TODO: Add more statistics

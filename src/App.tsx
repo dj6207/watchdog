@@ -3,8 +3,14 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './assets/App.css';
 import { NavBar } from './features/';
 import { RouteItem } from './types';
+import { useAppDispatch } from './app/hooks';
+import { setSelectedDate } from './slices/graphSlice';
 
 function App() {
+  const dispatch = useAppDispatch();
+  const today = new Date
+  dispatch(setSelectedDate(today.toISOString()));
+
   const userRoutes:RouteItem[] = [
     { path: '/home', label: 'Home'},
   ];

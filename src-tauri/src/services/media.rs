@@ -1,6 +1,6 @@
 use windows::{
     core::Error as WindowsError,
-    Media::Control::GlobalSystemMediaTransportControlsSessionManager, 
+    Media::Control::GlobalSystemMediaTransportControlsSessionManager, Storage::Streams::{IRandomAccessStreamReference, Buffer, InputStreamOptions, DataReader}, 
 };
 
 use tauri::{
@@ -22,7 +22,8 @@ async fn get_current_media_session() -> Result<Media, WindowsError> {
                 title: properties.Title()?.to_string_lossy(),
                 artist: properties.Artist()?.to_string_lossy(),
                 // TODO: Get actual thumbnail
-                thumbnail: None,
+                // thumbnail: None,
+                thumbnail: Some(get_thumbnail(properties.Thumbnail()?).await?),
             };
             return Ok(media)
         }
@@ -51,6 +52,21 @@ async fn get_all_media_sessions() -> Result<Vec<Media>, WindowsError> {
     return Ok(medias);
 }
 
+async fn get_thumbnail(thumbnail_ref:IRandomAccessStreamReference) -> Result<Vec<u8>, WindowsError> {
+    let read_operation  = thumbnail_ref.OpenReadAsync()?;
+    let read_stream = read_operation.await?;
+    let buffer_size = read_stream.Size()? as u32;
+    let buffer = Buffer::Create(buffer_size)?;
+    let read_buffer = read_stream.ReadAsync(&buffer, buffer_size, InputStreamOptions::None)?.await?;
+    let reader = DataReader::FromBuffer(&read_buffer)?;
+    let length = reader.UnconsumedBufferLength()? as usize;
+    let mut bytes = vec![0u8; length];
+    reader.ReadBytes(&mut bytes)?;
+    return Ok(bytes);
+}
+
+
+
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("media")
         .build()
@@ -70,7 +86,10 @@ mod test {
     async fn test_get_current_media_session() -> Result<(), WindowsError> {
         setup_test();
         match get_current_media_session().await {
-            Ok(_) => {Ok(())}
+            Ok(media) => {
+                log::info!("Media: {:?}", media);
+                Ok(())
+            }
             Err(e) => {Err(e)}
         }
     }
@@ -81,6 +100,19 @@ mod test {
         match get_all_media_sessions().await {
             Ok(medias) => {
                 log::info!("Medias: {:?}", medias);
+                Ok(())
+            }
+            Err(e) => {Err(e)}
+        }
+    }
+
+    // OMEGA DONT RUN THIS TEST SHTI GONNA CRASH VS CODE
+    #[tokio::test]
+    async fn get_thumbnail() -> Result<(), WindowsError> {
+        setup_test();
+        match get_current_media_session().await {
+            Ok(media) => {
+                log::info!("Thumbnail {:?}", media.thumbnail);
                 Ok(())
             }
             Err(e) => {Err(e)}

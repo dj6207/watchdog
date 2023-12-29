@@ -11,7 +11,8 @@ import '../assets/UsagePieChart.css'
 export const UsagePieChart: React.FC<PieChartProps> = ({ }: PieChartProps) => {
     const [useUsageData, setUseUsageData] = useState<ChartDataType>(ChartDataType.WindowUsageData);
     const today:Date = new Date();
-    const selectedDate:Date = useAppSelector((state) => state.graph.selectedDate);
+    const selectedDateISO:string = useAppSelector((state) => state.graph.selectedDate);
+    const selectedDate:Date = new Date(selectedDateISO);
 
     const formatedToday:string = formatDate(today);
     const formatedSelectDate:string = formatDate(selectedDate);
@@ -21,7 +22,6 @@ export const UsagePieChart: React.FC<PieChartProps> = ({ }: PieChartProps) => {
     const usageLogData:UsageLogData[] = realTime ? filterUsageLogData(useUpdateUsageLogData(formatedToday)) : filterUsageLogData(useGetUsageLogData(formatedSelectDate));
     const applicationUsageData:ApplicationUsageData[] = realTime ? filterApplicationUsageData(useUpdateApplicationUsageData(formatedToday)) : filterApplicationUsageData(useGetApplicationUsageData(formatedSelectDate));
     
-    // const toggleUsageData = () => setUseUsageData(!useUsageData);
 
     const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
         if (active && payload && payload.length) {
